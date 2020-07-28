@@ -1,0 +1,52 @@
+# write toy TMB model to check that have Jacobian right
+
+library(TMB)
+library(pscl) # use this package for nice inverse gamma functions
+dyn.unload(dynlib("SigmaTest"))
+TMB::compile("SigmaTest.cpp") 
+dyn.load(dynlib("SigmaTest"))
+
+Sig_Gam_Dist <- 1
+
+data <- list()
+data$Sig_Gam_Dist <- Sig_Gam_Dist
+
+param <- list()
+param$logSigma <- 0
+
+obj <- MakeADFun(data, param, DLL="SigmaTest", silent=TRUE)
+opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1e5, iter.max = 1e5))
+
+summary(sdreport(obj))
+# doesn't seem to be working
+
+# fit as mcmc and look at hist of posterior
+library(tmbstan)
+fitmcmc <- tmbstan(obj, chains=3, iter=1000, init=list(opt$par))
+# pull out posterior vals
+post<-as.matrix(fitmcmc)
+# not working either
+
+# simulate gamma on tau to look at dist and median
+tau_sim <- rgamma(10000, shape = Sig_Gam_Dist, rate = Sig_Gam_Dist)
+median(tau_sim)
+var <- 1/tau_sim
+median(var)
+
+# simulate inverse gamma directly on variance
+var_sim <- rigamma(100000, alpha = Sig_Gam_Dist, beta = Sig_Gam_Dist)
+median(var_sim) # same as above
+median(sqrt(var_sim)) # should be sigma
+
+# simulate to see if matches
+x <- seq(0.0000001, 10, length=10000)
+var_dens <- densigamma(x, alpha = Sig_Gam_Dist, beta = Sig_Gam_Dist )
+plot(x, var_dens, type="l", xlab="x value", ylim=c(0, 1))
+abline(v=median(var_sim))
+hist(var_sim[var_sim < 10], probability = T, add=T, breaks = 100) 
+# as lower Sig_Gam_Dist, density plot and histogram no longer line up
+
+
+
+
+

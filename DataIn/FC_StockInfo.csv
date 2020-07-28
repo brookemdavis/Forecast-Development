@@ -1,0 +1,21 @@
+Species,PopType,PopID,PopLabel,PopNmL,PopNmS,PopNmFC,PopSeq,GrpNm,GrpID,PopAgeClasses,AvgGen,Cyclic,JuvModel
+Sockeye,Stock,1,Pop1,Early Stuart,EStu,E.Stuart ,1,EStu,1,"c(4,5)",4,Y,N
+Sockeye,Stock,2,Pop2,Late Stuart,LStu,L.Stuart,10,Sum,3,"c(4,5)",4,Y,N
+Sockeye,Stock,3,Pop3,Stellako,Stell,Stellako,12,Sum,3,"c(4,5)",4,N,N
+Sockeye,Stock,4,Pop4,Bowron,Bowr,Bowron,2,ESum,2,"c(4,5)",4,,N
+Sockeye,Stock,5,Pop5,Raft,Raft,Raft,14,Sum,3,"c(4,5)",4,,N
+Sockeye,Stock,6,Pop6,Quesnel,Ques,Quesnel(Mitchell+Horsefly),11,Sum,3,"c(4,5)",4,,N
+Sockeye,Stock,7,Pop7,Chilko,Chil,Chilko,9,Sum,3,"c(4,5)",4,,N
+Sockeye,Stock,8,Pop8,Seymour,Sey,Seymour ,8,ESum,2,"c(4,5)",4,,N
+Sockeye,Stock,9,Pop9,Late Shuswap,LShu,L.Shuswap(Adams R complex + Lower Shuswap R),16,Lat,4,"c(4,5)",4,,N
+Sockeye,Stock,10,Pop10,Birkenhead,Birk,Birkenhead,19,Lat,4,"c(4,5)",4,,N
+Sockeye,Stock,11,Pop11,Cultus,Cult,Cultus,15,Lat,4,"c(4,5)",4,,N
+Sockeye,Stock,12,Pop12,Portage,Port,Portage,17,Lat,4,"c(4,5)",4,,N
+Sockeye,Stock,13,Pop13,Weaver Creek,Weav,Weaver Ck(channel+wild),18,Lat,4,"c(4,5)",4,,N
+Sockeye,Stock,14,Pop14,Fennel Creek,Fenn,Fennell Ck,3,ESum,2,"c(4,5)",4,,N
+Sockeye,Stock,15,Pop15,Scotch Creek,Scot,Scotch Ck (early),7,ESum,2,"c(4,5)",4,,N
+Sockeye,Stock,16,Pop16,Gates,Gate,Gates(channel+wild),4,ESum,2,"c(4,5)",4,,N
+Sockeye,Stock,17,Pop17,Nadina,Nadi,Nadina,5,ESum,2,"c(4,5)",4,,N
+Sockeye,Stock,18,Pop18,Upper Pitt River,UPit,Upper Pitt R,6,ESum,2,"c(4,5)",4,,N
+Sockeye,Stock,19,Pop19,Harrison,Harr,Harrison,13,Sum,3,"c(3,4)",4,,N
+Pink,Stock,20,Pop20,Fraser Pink,FRPk,Pinks,20,Pinks,5,c(2),2,,N

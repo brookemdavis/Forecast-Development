@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1593729126827.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2997855933",
+    "id" : "854FDE48",
+    "lastKnownWriteTime" : 1593729132,
+    "last_content_update" : 1593729132831,
+    "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/TMB/Single_Stock_Ricker.cpp",
+    "project_path" : "Code/TMB/Single_Stock_Ricker.cpp",
+    "properties" : {
+        "cursorPosition" : "82,20",
+        "scrollLine" : "0",
+        "source_window_id" : ""
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "cpp"
+}
