@@ -24,7 +24,7 @@ Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, tr
   
   opt <- optimize( f=ObjectiveSGen, interval=c(0, SMSY), SpMSY=SMSY,
                    alpha=true_a, beta=true_b )
-  
+
   # Get SGen from the optimized output (i.e., minimum neg log-like)
   SGen <- opt$minimum
   
@@ -45,19 +45,22 @@ Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, tr
     # random recruitment residual
     if(autoCorr == F){
        eps[i] <- rnorm(1, 0, Sig_Ricker)
+       Sig <- Sig_Ricker
     } else {
       if(i == age+1){
         # if first year just simulate random resid
         eps[i] <- rnorm(1, 0, Sig_Ricker)
+        Sig <- Sig_Ricker
       } else {
         # in subsequent years start from previous e
         eps[i] <- rnorm(1, rho*eps[i-1], Sig_Ricker*sqrt(1-rho^2))
+        Sig <- Sig_Ricker*sqrt(1-rho^2)
       }
     }
     if(lnorm_corr == F){ 
       rec[i] <- max(R_mean*exp(eps[i]), 100) 
     } else {
-      rec[i] <- max(R_mean*exp(eps[i]-0.5*Sig_Ricker^2), 100)
+      rec[i] <- max(R_mean*exp(eps[i]-0.5*Sig^2), 100)
     }
     # want to find way to make sure pop gets knocked down every once in a while
     if(sum(esc[(i-4):(i-1)] > SMSY) == 4) { hr_vec[i] <- hr_max}

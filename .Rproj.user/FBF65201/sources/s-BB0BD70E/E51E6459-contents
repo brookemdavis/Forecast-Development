@@ -1,0 +1,122 @@
+---
+title: "tmbstan Priors"
+author: "Brooke Davis & Cole Monnahan"
+date: "7/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(TMB)
+library(pscl) # use this package for nice inverse gamma functions
+library(truncnorm)
+#dyn.unload(dynlib("Code/TMB/SigmaTest"))
+#TMB::compile("Code/TMB/SigmaTest.cpp")
+dyn.load(dynlib("Code/TMB/SigmaTest"))
+
+Sig_Gam_Dist <- 1
+A_mean <- 5
+A_sig <- 1
+
+data <- list(Sig_Gam_Dist=Sig_Gam_Dist, A_mean = A_mean, A_sig = A_sig)
+param <- list(sigma1=1, logsigma2=0, tau3=1, logsigma4=1, logA = 1)
+
+obj <- MakeADFun(data, param, DLL="SigmaTest" )
+obj$fn()
+summary(sdreport(obj))
+
+library(tmbstan)
+library(shinystan)
+fitmcmc <- tmbstan(obj, chains=3, iter=200000, thin=10,
+                   lower=c(0,-Inf,0,-Inf, -Inf), upper=c(Inf, Inf, Inf,Inf, Inf))
+# pull out posterior vals
+post <- as.data.frame(fitmcmc)
+```
+
+## Implementing priors in tmbstan
+
+When using TMB and tmbstan to fit a Bayesian model, non-uniform priors may be desired. This vignette covers some of the considerations that need to be taken when implementing priors using tmbstan, and provides two examples for commonly used Bayesian priors (half-normal and inverse gamma). The provided scripts can also be used to test the implementation of other priors. 
+
+### A note on prior choice
+
+We suggest reading [this advice](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations) on prior choice before implementing Bayesian priors (such as an inverse gamma prior on variance).
+
+### Implementing priors on transformed variables
+
+Whenever a prior is implemented on a transformed variable, a Jacobian tranformation needs to be added in order to ensure unbiased estimates. More in-depth description of the theory behind this can be found [here](https://mc-stan.org/docs/2_23/stan-users-guide/changes-of-variables.html) and [here](http://rstudio-pubs-static.s3.amazonaws.com/486816_440106f76c944734a7d4c84761e37388.html). This is a problem often encountered when using tmbstan, since strictly positive variables are often estimated in log space. Therefore, if you wish to put a prior on that variable on that non-transformed variable, a Jacobian adjustment is required. In TMB, which minimized the negative log-likelihood, the Jacobian adjustement is encorporated by subtracting it from the negative log-likelihood. 
+
+### The Jacobian Adjustment
+
+The Jacobian adjustement takes the form of:
+
+$$ log| f(\phi) d / d\phi | $$
+
+### Example 1 - Half-normal Prior on standard deviation
+``` {half-normal, echo=FALSE}
+par(mfrow=c(2,2))
+x <- seq(1e-5,10, len=500)
+bb <- 50
+hist(post$sigma1, freq=FALSE, breaks=bb)
+lines(x, dtruncnorm(x, 0,Inf))
+hist(exp(post$logsigma2), freq=FALSE, breaks=bb)
+lines(x, dtruncnorm(x, 0,Inf))
+```
+
+
+### Example 2 - Inverse gamma prior on variance
+
+Inverse gamma priors have been commonly put on variance ($\sigma^2$) parameters, and in the past have been suggested as a good option for a non-informative prior. More recent work has [found issues](http://www.stat.columbia.edu/~gelman/research/published/taumain.pdf) with this family of priors, but their use still persists.
+
+A straight-forward way to implement this prior in TMB (which has a built-in gamma distribution function) is by putting a gamma prior on precision, $\tau$:  
+
+$$\tau = 1/\sigma^2$$
+
+Additionally, since standard deviation is strictly positive, it is common that in a TMB script, that the estimated parameter would be $log(\sigma)$. Since we are putting a prior on $\tau$, which is a tranformation for our parameter, $log(\sigma)$, a Jacobian adjustment is required. In this case, the tranformation, $f(\phi)$, is going from $\phi = log(\sigma)$ to $f(\phi) = \tau$. The Jacobian is therefore:
+
+$$ log | 1/(e^\phi)^2 d/d\phi |  =  log | e^{-2\phi} d/d\phi | \\
+                                 =  log |-2e^{-2\phi}| \\
+                                 = log2 - 2\phi $$
+                                 
+Therefore $log(2) - 2log(\sigma)$ is subtracted from the negative log-likelihood.
+
+``` {Inverse gamma, echo=FALSE}
+
+# need to show results using external bounds on tau, and maybe result if don't use either Jacobian or external bounds to show how they are wrong?
+
+
+# plot his of tau, which should be gamma dist
+hist(post$tau3, freq=FALSE, breaks=bb)
+lines(x, dgamma(x,1,1))
+hist(1/exp(post$logsigma4)^2, freq=FALSE, breaks=bb)
+lines(x, dgamma(x, 1,1))
+
+# plot hist of variance, which should be inverse gamma dist.
+VarPost <- exp(2*post$logsigma4)
+# variance posterior has some massively large values, in order to look
+# at histogram need to cut out some of these large values
+# 90% of the posterior density is below 10 -- use this as cutoff
+hist(VarPost[VarPost<10], freq=FALSE, breaks=bb)
+lines(x, densigamma(x, 1,1))
+
+x <- seq(1, 10, len=500)
+bb <- 50
+hist(exp(post$logA), freq=FALSE, breaks=bb)
+lines(x, dnorm(x, A_mean, A_sig))
+# looks good
+
+# simulate gamma on tau to look at dist and median
+tau_sim <- rgamma(10000, shape = Sig_Gam_Dist, rate = Sig_Gam_Dist)
+median(tau_sim)
+var <- 1/tau_sim
+median(var)
+median(VarPost)
+# looks good!
+
+# simulate inverse gamma directly on variance
+var_sim <- rigamma(100000, alpha = Sig_Gam_Dist, beta = Sig_Gam_Dist)
+median(var_sim) # same as above
+median(VarPost)
+# looks good!
+
+```
