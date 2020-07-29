@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1596039191147.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1114906049",
+    "id" : "13EA0570",
+    "lastKnownWriteTime" : 1596056164,
+    "last_content_update" : 1596056164433,
+    "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/Testing_Power_Models.R",
+    "project_path" : "Code/Testing_Power_Models.R",
+    "properties" : {
+        "cursorPosition" : "131,12",
+        "scrollLine" : "84"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

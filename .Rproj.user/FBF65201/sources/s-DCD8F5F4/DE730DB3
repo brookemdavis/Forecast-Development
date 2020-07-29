@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1596055180818.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "DE730DB3",
+    "lastKnownWriteTime" : 1596055869,
+    "last_content_update" : 1596055869899,
+    "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/STAN/Single_Stock_Power.stan",
+    "project_path" : "Code/STAN/Single_Stock_Power.stan",
+    "properties" : {
+        "cursorPosition" : "34,21",
+        "scrollLine" : "20"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "stan"
+}

@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1596038117216.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "2C9E1E15",
+    "lastKnownWriteTime" : 1596038845,
+    "last_content_update" : 1596038845737,
+    "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/Testing_Ricker_Mods.R",
+    "project_path" : "Code/Testing_Ricker_Mods.R",
+    "properties" : {
+        "cursorPosition" : "86,10",
+        "scrollLine" : "70",
+        "tempName" : "Untitled1"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

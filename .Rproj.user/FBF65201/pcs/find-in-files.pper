@@ -3,8 +3,8 @@
         "caseSensitive" : false,
         "filePatterns" : [
         ],
-        "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Fraser-Sockeye-Forecast/CODE",
-        "query" : "p.beta",
+        "path" : "C:/Users/davisbr/Documents/LRP_RetroEval/Code",
+        "query" : "tmbstan",
         "regex" : false
     }
 }

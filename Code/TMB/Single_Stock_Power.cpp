@@ -11,6 +11,7 @@ Type objective_function<Type>::operator() ()
   DATA_SCALAR(Sig_Gam_Dist);
   DATA_SCALAR(B_mean);
   DATA_SCALAR(B_sig);
+  DATA_INTEGER(Bayes);
   
   PARAMETER(logA);
   PARAMETER(logSigma);
@@ -21,8 +22,8 @@ Type objective_function<Type>::operator() ()
   int N_Obs = S.size(); 
   vector<Type> logR_Fit(N_Obs);
   vector<Type> R_Fit(N_Obs);
-  Type B = exp(log_beta);
-  Type A = exp(log_alpha);
+  Type B = exp(logA);
+  Type A = exp(logB);
   
   
   for(int i=0; i<N_Obs; ++i){
@@ -35,16 +36,22 @@ Type objective_function<Type>::operator() ()
  if(Priors == 1){
   // Normal prior on A -- this is form in current forecast, will leave as is for now
   ans -= dnorm(exp(logA), A_mean, A_sig, true);
-   // need Jacobian since logA is parameter log | exp(x) d/dx | = x
-   ans -= logA
+   if(Bayes == 1){
+     // need Jacobian since logA is parameter log | exp(x) d/dx | = x
+     ans -= logA;
+   }
    // gamma prior on 1/sigma == inverse gamma on sigma, needs adjustment 
   ans -= dgamma(pow(sigma, -2), Sig_Gam_Dist, 1/Sig_Gam_Dist, true);
-  // Jacobian adjustment
-  ans -= log(2)  - 2*logSigma;
+   if(Bayes == 1){
+      // Jacobian adjustment
+      ans -= log(2)  - 2*logSigma;
+   }
   // Normal prior on B
   ans -= dnorm(exp(logB), B_mean, B_sig, true);
-  // need Jacobian since logB is parameter log | exp(x) d/dx | = x
-  ans -= logB
+   if(Bayes == 1){
+      // need Jacobian since logB is parameter log | exp(x) d/dx | = x
+      ans -= logB;
+   }
  }
  
  SIMULATE {

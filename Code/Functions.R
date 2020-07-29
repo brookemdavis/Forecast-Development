@@ -150,6 +150,8 @@ RunRicker <- function(Data,
   data$logA_mean <- logA_mean
   data$Sig_Gam_Dist <- Sig_Gam_Dist
   data$logSmax_mean <- log(Smax_mean/Scale)
+  # set Bayes to 0, switch to one if using tmbstan
+  data$Bayes <- 0
   
   # set up starting values
   param <- list()
@@ -162,6 +164,7 @@ RunRicker <- function(Data,
     data$Scale <- Scale
     data$Priors <- as.numeric(Priors)
     param$logSmax <- log(as.numeric(quantile(Data$S, 0.8)/Scale))
+    if(Fitting_SW =="tmbstan") data$Bayes <- 1
   }
   
   # if using TMB, stan variance is defined using sd
@@ -176,13 +179,13 @@ RunRicker <- function(Data,
     data$R_Obs <- Data$R/Scale
     data$N <- dim(Data)[1]
     param$Smax <- as.numeric(quantile(Data$S, 0.8)/Scale)
-    param$tau <- 1/exp(-2)^2
   }
   
   # if using jags, variance is defined using precision (1/variance)
   if(Fitting_SW == "JAGS"){
     data$logA_tau <- 1/(logA_sig)^2
     data$logSmax_tau <- 1/(Smax_sig)^2
+    param$tau <- 1/exp(-2)^2
   }
 
   #==========
@@ -322,6 +325,201 @@ RunRicker <- function(Data,
   out
   
 }
+#========================================================================================
+
+# Now same function but for power model
+RunPower <- function(Data, 
+                      Fitting_SW = "TMB", # which model fitting software to use? TMB, Stan, tmbstan, JAGS
+                      Priors = T, # if fitting with TMB, have option not use priors
+                      Name = "Test", # Name to put in Mod column
+                      A_mean = 0, A_sig = 0, # priors on Alpha
+                      B_mean = 0, B_sig = 0, # priors on beta
+                      Sig_Gam_Dist = 0.001 ) {  # inverse gamma shape and scale param
+  
+  # Want to scale down obs to make models more stable
+  # only really required for TMB, but will use for all models
+  Scale <- 10^(floor(log(mean(Data$R), 10)))
+  
+  # Set up data and starting value lists list to go into model
+  # these are the same regardless of software
+  data <- list() #data inputs
+  data$S <- Data$S/Scale 
+  data$A_mean <- A_mean
+  data$B_mean <- B_mean
+  data$Sig_Gam_Dist <- Sig_Gam_Dist
+  # set Bayes to 0, switch to one if using tmbstan
+  data$Bayes <- 0
+  
+  # set up starting values
+  param <- list()
+  param$logA <- param$logB <- 0
+  param$logSigma <- 1
+  
+  # if using TMB input logR, rather than R_Obs, need Scale, Prior indicator
+  if(Fitting_SW %in% c("TMB", "tmbstan")){
+    data$logR <- log(Data$R/Scale)
+    data$Scale <- Scale
+    data$Priors <- as.numeric(Priors)
+    if(Fitting_SW =="tmbstan") data$Bayes <- 1
+  }
+  
+  # if using TMB, stan variance is defined using sd
+  if(Fitting_SW %in% c("TMB", "Stan", "tmbstan")){
+    data$A_sig <- A_sig
+    data$B_sig <- B_sig
+  }
+  
+  # if jags or stan need R_Obs rather than logR, and N
+  if(Fitting_SW %in% c("JAGS", "Stan")){
+    data$R_Obs <- Data$R/Scale
+    data$N <- dim(Data)[1]
+  }
+  
+  # if using jags, variance is defined using precision (1/variance)
+  if(Fitting_SW == "JAGS"){
+    data$A_tau <- 1/(A_sig)^2
+    data$B_tau <- 1/(B_sig)^2
+    param$tau <- 1/exp(-2)^2
+  }
+  
+  #==========
+  # TMB Fit
+  #==========
+  if( Fitting_SW == "TMB") {
+    # Now Fit TMB model
+    obj <- MakeADFun(data, param, DLL="Single_Stock_Ricker", silent=TRUE)
+    opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1e5, iter.max = 1e5))
+    
+    # pull out estimates from ML fit
+    # Create Table of outputs
+    All_Ests <- data.frame(summary(sdreport(obj)))
+    All_Ests$Param <- row.names(All_Ests)
+    
+    # pull out fitted values
+    R_Ests <- All_Ests[grepl("R_Fit", All_Ests$Param),  ] [, -3 ]
+    names(R_Ests) <- c("R_Fit", "StdErr")
+    
+    # create new rows with fitted values
+    FitsDF <- data.frame(S = Data$S, R = NA, Fit = R_Ests$R_Fit, Year = 1:dim(R_Ests)[1], 
+                         Mod = Name)
+    FitsDF$CI_low <- R_Ests$R_Fit - 1.96*R_Ests$StdErr
+    FitsDF$CI_up <- R_Ests$R_Fit + 1.96*R_Ests$StdErr
+    
+    # create prediction interval using simulate
+    R_Preds <- matrix(nrow = 1000, ncol = 50)
+    for(i in 1:1000){
+      R_Preds[i, ] <- obj$simulate()$R_Pred
+    }
+    R_Pred_Summ <- apply(R_Preds, 2, quantile, probs = c(0.025, 0.5, 0.975))
+    
+    FitsDF$Pred <- R_Pred_Summ[2,]
+    FitsDF$Pred_low <- R_Pred_Summ[1,]
+    FitsDF$Pred_up<- R_Pred_Summ[3,]
+    
+  } # end TMB fit
+  
+  #====================
+  # Fit using tmbstan
+  #====================
+  if(Fitting_SW == "tmbstan"){
+    # set up and fit TMB model
+    obj <- MakeADFun(data, param, DLL="Single_Stock_Ricker", silent=TRUE)
+    opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1e5, iter.max = 1e5))
+    # now fit as mcmc
+    fitmcmc <- tmbstan(obj, chains=3, iter=100000, init=list(opt$par), 
+                       control = list(adapt_delta = 0.95))
+    # pull out posterior vals
+    All_Ests<-as.matrix(fitmcmc)
+    
+    # pull out R_Fit values
+    R_Fit_Med <- obj$report(All_Ests[1,-ncol(All_Ests)])$R_Fit         
+    R_Fit <- matrix(NA, nrow=nrow(All_Ests), ncol = length(R_Fit_Med))
+    for(i in 1:nrow(All_Ests)){
+      r <- obj$report(All_Ests[i,-ncol(All_Ests)])
+      R_Fit[i,] <- r$R_Fit
+    }
+    
+    # now for each column get median, quantiles and add to DF
+    R_Fit_Summ <- apply(R_Fit, 2, quantile, probs = c(0.025, 0.5, 0.975))
+    
+    # Do same simulate() routine to get prediction intervals
+    R_Preds <- matrix(nrow = 1000, ncol = 50)
+    for(i in 1:1000){
+      R_Preds[i, ] <- obj$simulate()$R_Pred
+    }
+    R_Pred_Summ <- apply(R_Preds, 2, quantile, probs = c(0.025, 0.5, 0.975))
+    
+    FitsDF <- data.frame(S = Data$S, R = Data$R, Fit = R_Fit_Summ[2,], 
+                         Year = 1:dim(R_Pred_Summ)[2],   Mod = Name,
+                         CI_up = R_Fit_Summ[1,],
+                         CI_low = R_Fit_Summ[3,],
+                         Pred = R_Pred_Summ[2,],
+                         Pred_low = R_Pred_Summ[1,],
+                         Pred_up = R_Pred_Summ[3,])
+  } #end tmbstan fit
+  
+  #===========
+  # JAGS Fit
+  #===========
+  if(Fitting_SW == "JAGS"){
+    
+    init_vals <- list(param, param, param) # come back, this could be better
+    
+    JagsFit <- jags(data, inits = init_vals, model.file = Ricker.model.MCMC, 
+                    n.chains =3, n.iter=10000, n.burnin = 4000, n.thin = 3, 
+                    parameters.to.save = c("R_Fit", "R_Pred", "A", "B", "sigma"))
+    
+    # Turn into Data Frame
+    All_Ests <- data.frame(JagsFit$BUGSoutput$summary)
+    All_Ests$Param <- row.names(All_Ests)
+    
+    R_Ests_Jags <- All_Ests[grepl("R_Fit", All_Ests$Param),  ]
+    R_Preds_Jags <- All_Ests[grepl("R_Pred", All_Ests$Param),  ]
+    
+    FitsDF <- data.frame(S = Data$S, R = Data$R, Fit = R_Ests_Jags$X50. * Scale, 
+                         Year = 1:dim(R_Ests_Jags)[1],   Mod = Name,
+                         CI_up = R_Ests_Jags$X97.5. * Scale,
+                         CI_low = R_Ests_Jags$X2.5. * Scale,
+                         Pred = R_Preds_Jags$X50. * Scale,
+                         Pred_low = R_Preds_Jags$X2.5. * Scale,
+                         Pred_up = R_Preds_Jags$X97.5. * Scale)
+  } # end JAGS fit
+  
+  #===========
+  # Stan Fit
+  #===========
+  
+  if(Fitting_SW == "Stan"){
+    
+    #run stan model
+    stan_fit <- stan(file = 'Code/STAN/Single_Stock_Ricker.stan', data = data, iter = 50000, 
+                     chains = 3,  control = list(adapt_delta = 0.95))
+    
+    All_Ests <- data.frame(summary(stan_fit)$summary)
+    All_Ests$Param <- row.names(All_Ests)
+    
+    R_Fits_Stan <- All_Ests[grepl("R_Fit", All_Ests$Param),  ]
+    R_Preds_Stan <- All_Ests[grepl("R_Pred", All_Ests$Param),  ]
+    
+    FitsDF <- data.frame(S = Data$S, R = Data$R, Fit = R_Fits_Stan$X50. * Scale, 
+                         Year = 1:dim(R_Fits_Stan)[1],   Mod = Name,
+                         CI_up = R_Fits_Stan$X97.5. * Scale,
+                         CI_low = R_Fits_Stan$X2.5. * Scale,
+                         Pred = R_Preds_Stan$X50. * Scale,
+                         Pred_up = R_Preds_Stan$X97.5. * Scale,
+                         Pred_low = R_Preds_Stan$X2.5. * Scale)
+    
+  } # end stan fit
+  
+  # Return fit and predicted values  
+  out <- list()
+  out[[1]] <- FitsDF
+  out[[2]] <- All_Ests
+  out[[3]] <- Scale
+  out
+  
+}
+
 
 
 #========================================================================================
@@ -348,14 +546,14 @@ Ricker.model.MCMC <- function(){
 Power.model.MCMC <- function(){
   for (i in 1:N) {                             # loop over N sample points
     R_Obs[i] ~ dlnorm(logR_Fit[i], tau)          # likelihood -> predicted value for NA in data set
-    logR_Fit[i] <- alpha + beta * log(S[i])       # power model
+    logR_Fit[i] <- A + B * log(S[i])       # power model
     R_Fit[i] <- exp(logR_Fit[i])
     R_Pred[i] ~ dlnorm(logR_Fit[i],tau)
   }
   
-  alpha ~ dnorm(alpha_mean,alpha_tau)             # prior for alpha
-  beta ~ dnorm(beta_mean,beta_tau)                # prior for beta
-  tau ~ dgamma(Sig_Gam_Dist,Sig_Gam_Dist)                  # prior for precision parameter
+  A ~ dnorm(A_mean, A_tau)             # prior for alpha
+  B ~ dnorm(B_mean, B_tau)                # prior for beta
+  tau ~ dgamma(Sig_Gam_Dist,Sig_Gam_Dist)    # prior for precision parameter
   sigma <- 1/sqrt(tau)   		                  	
   
 }

@@ -4,6 +4,7 @@ library(dplyr)
 library(ggplot2)
 library(TMB)
 library(tmbstan)
+library(R2jags)
 source("Code/Functions.R")
 
 
@@ -67,5 +68,65 @@ ggplot(data = FitsDF, aes(x=S, y=Fit, ymin = CI_low, ymax = CI_up)) +
 
 
 # now TMB
+# only need to compile if changed model
+dyn.unload(dynlib("Code/TMB/Single_Stock_Power"))
+TMB::compile("Code/TMB/Single_Stock_Power.cpp") # can't seem to compile if have TMBstan loaded
+dyn.load(dynlib("Code/TMB/Single_Stock_Power"))
+
+Scale <- 10^(floor(log(mean(Data$R), 10)))
+
+# change param values
+
+TMBdata <- list() #data inputs
+TMBdata$logR <- log(Data$R/Scale) 
+TMBdata$S <- Data$S/Scale
+TMBdata$A_mean <- 5
+TMBdata$B_mean <-  0
+TMBdata$A_sig <- TMBdata$B_sig <- sqrt(1/data$alpha_tau)
+TMBdata$Sig_Gam_Dist <- 0.001
+TMBdata$Scale <- Scale
+TMBdata$Priors <- 0
+TMBdata$Bayes <- 0
+
+# set up starting values
+
+param <- list()
+param$logA <- param$logB <- 0
+param$logSigma <- 1
+
+obj <- MakeADFun(TMBdata, param, DLL="Single_Stock_Power", silent=TRUE)
+opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1e5, iter.max = 1e5))
+
+# pull out estimates from ML fit
+# Create Table of outputs
+All_Ests <- data.frame(summary(sdreport(obj)))
+All_Ests$Param <- row.names(All_Ests)
+
+# pull out fitted values
+R_Ests <- All_Ests[grepl("R_Fit", All_Ests$Param),  ] [, -3 ]
+names(R_Ests) <- c("R_Fit", "StdErr")
+
+# create new rows with fitted values
+FitsDF_TMB <- data.frame(S = Data$S, R = NA, Fit = R_Ests$R_Fit, Year = 1:dim(R_Ests)[1], 
+                     Mod = "TMB_No_Prior")
+FitsDF_TMB$CI_low <- R_Ests$R_Fit - 1.96*R_Ests$StdErr
+FitsDF_TMB$CI_up <- R_Ests$R_Fit + 1.96*R_Ests$StdErr
+
+# create prediction interval using simulate
+R_Preds <- matrix(nrow = 1000, ncol = 50)
+for(i in 1:1000){
+  R_Preds[i, ] <- obj$simulate()$R_Pred
+}
+R_Pred_Summ <- apply(R_Preds, 2, quantile, probs = c(0.025, 0.5, 0.975))
+
+FitsDF_TMB$Pred <- R_Pred_Summ[2,]
+FitsDF_TMB$Pred_low <- R_Pred_Summ[1,]
+FitsDF_TMB$Pred_up<- R_Pred_Summ[3,]
 
 
+All_Ests <- bind_rows(FitsDF, FitsDF_TMB)
+ggplot(data = All_Ests, aes(x=S, y=Fit, ymin = CI_low, ymax = CI_up, col = Mod, fill= Mod)) +
+  geom_line(size = 1.5) +
+  geom_ribbon( alpha = 0.1) +
+  geom_point(aes(x=S, y=R), col = "black") +
+  theme_bw()

@@ -52,6 +52,7 @@ Type objective_function<Type>::operator() ()
   DATA_SCALAR(Sig_Gam_Dist);
   DATA_SCALAR(logSmax_mean);
   DATA_SCALAR(logSmax_sig);
+  DATA_INTEGER(Bayes);
   
   PARAMETER(logA);
   PARAMETER(logSigma);
@@ -79,8 +80,10 @@ Type objective_function<Type>::operator() ()
   ans -= dnorm(logA, logA_mean, logA_sig, true);
    // gamma prior on 1/sigma == inverse gamma on sigma, needs adjustment 
   ans -= dgamma(pow(sigma, -2), Sig_Gam_Dist, 1/Sig_Gam_Dist, true);
-  // Jacobian adjustment
-  ans -= log(2)  - 2*logSigma;
+  if(Bayes == 1){
+    // Jacobian adjustment -- only needed if running as Bayesian model with tmbstan
+    ans -= log(2)  - 2*logSigma;
+  }
   // Lognormal prior on Smax (normal on logSmax) 
    ans -= dnorm(logSmax, logSmax_mean, logSmax_sig, true);
  }
