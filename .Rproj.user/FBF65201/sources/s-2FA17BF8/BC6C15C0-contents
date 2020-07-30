@@ -319,9 +319,9 @@ RunRicker <- function(Data,
   
 # Return fit and predicted values  
   out <- list()
-  out[[1]] <- FitsDF
-  out[[2]] <- All_Ests
-  out[[3]] <- Scale
+  out$Fits <- FitsDF
+  out$Ests <- All_Ests
+  out$Scale <- Scale
   out
   
 }
@@ -513,9 +513,9 @@ RunPower <- function(Data,
   
   # Return fit and predicted values  
   out <- list()
-  out[[1]] <- FitsDF
-  out[[2]] <- All_Ests
-  out[[3]] <- Scale
+  out$Fit <- FitsDF
+  out$Ests <- All_Ests
+  out$Scale <- Scale
   out
   
 }

@@ -1,0 +1,214 @@
+# Chilliwack S-R analysis for 2019 and 2020 forecast
+# Plus sensitivity analysis to be included in 2020 forecast
+# May 2020
+# Brooke Davis (code adapted from Mike Hawkshaw)
+
+
+library(rstan)
+library(calibrate)
+library(dplyr)
+
+# read in data
+SRdat_raw <- read.csv("Chilliwack_updaterec.csv")
+
+# write function that takes data, fits model, produces plot and table
+
+Run_Ricker <- function(Dat = SRdat_raw, BroodYears = c(2015,2016), Name = "2020_AllDat", seed = 36, iter=10000){
+  
+  # Create a vector for predicting brood year recruits, and also for plotting  
+  Brood_Year_EFFs <- Dat %>% filter(Year %in% BroodYears) %>% pull(eff_fem)
+  Brood_Year_EFFs <- c(Brood_Year_EFFs, seq(1, max(Dat$eff_fem, na.rm=T)*1.2, length = 100))
+  
+  #remove years with NA's for model
+  Mod_Dat <- Dat %>% filter(is.na(rec) == F)
+  # set up stan model data
+  data_single_pop_es<-list(N=length(Mod_Dat$rec), eff=Mod_Dat$eff_fem, rec=Mod_Dat$rec, 
+                           N_new=length(Brood_Year_EFFs), x_new=Brood_Year_EFFs) 
+  
+  # set seed and run stan model
+  #set.seed(seed) 
+  fit_single_pop_es <- stan(file = 'one_pop.stan', data = data_single_pop_es, iter = iter, chains = 4,
+                            control = list(adapt_delta = 0.95), seed = seed)
+  
+  # Extract predictions for age4s and age5s
+  fit_values<-extract(fit_single_pop_es)
+  Age5 <- quantile(fit_values$rec_pred[,1], c(0.1,0.25,0.5,0.75,0.9))
+  Age4 <- quantile(fit_values$rec_pred[,2], c(0.1,0.25,0.5,0.75,0.9))
+  
+  # what proportion of fish return at age 4? Use Mod Dat, since will have complete recruitements
+  P4 <- mean(Mod_Dat$rec4/Mod_Dat$rec) 
+  
+  Age4_Pred <- Age4*P4
+  Age5_Pred <- Age5*(1-P4)
+  
+  Total = Age4_Pred + Age5_Pred
+  
+  # calculate age 4 RPS
+  RPS_Age4 <- Age4_Pred/Brood_Year_EFFs[2]
+  
+  # make output table
+  Tab_Out <- data.frame(rbind(Age4_Pred, Age5_Pred, Total, RPS_Age4))
+  
+  write.csv(Tab_Out, paste("Tab_Out",Name ,".csv", sep=""))
+  
+  # Pull out other predictions (not brood years) to plot
+  Pred_Mat <- as.matrix(fit_values$rec_pred[, 3:102])
+  
+  # Turn this into bounds for plot
+  Preds <- data.frame(EFF = Brood_Year_EFFs[3:102])
+  Preds$Up <- Preds$Low <-  NA
+  for(i in 1:dim(Preds)[1]){
+    Quants <- quantile(fit_values$rec_pred[,i+2], c(0.1,0.25,0.5,0.75, 0.9))
+    Preds$Low[i] <- Quants[1]
+    Preds$MedLow[i] <- Quants[2]
+    Preds$Est[i] <- Quants[3]
+    Preds$MedUp[i] <- Quants[4]
+    Preds$Up[i] <- Quants[5]
+  }
+  
+  # plot
+  
+  Fig <- ggplot(data=Preds, mapping = aes(x=EFF, y=Est)) +
+    geom_line( col = "red", size = 2) +
+    geom_ribbon(aes(ymin = Low, ymax = Up, x=EFF), fill = "red", alpha = 0.2) +
+    geom_ribbon(aes(ymin = MedLow, ymax = MedUp, x=EFF), fill = "red", alpha = 0.4) +
+    geom_point(data=Mod_Dat, mapping=aes(x=eff_fem,y=rec), size = 1.2) +
+    xlab("Eff. Female Spawners") + ylab("Recruits") +
+    coord_cartesian(ylim = c(0, 500000), xlim = c(0, 80000)) +
+    # add lines for 2014 and 2015 EFF
+    geom_vline(xintercept = Brood_Year_EFFs[1], linetype = "dashed") +
+    geom_vline(xintercept = Brood_Year_EFFs[2]) +
+    scale_y_continuous(labels = scales::comma) +
+    scale_x_continuous(labels = scales::comma) +
+    #scale_linetype_manual(values = c("2014 Brood" = "1", "2015 Brood" = "2"))
+    #scale_color_manual(name = 'Ricker Uncertainty', values = cols ) +
+    #scale_colour_manual(name = 'Brood Year Escapements',  values =cols, labels = c('2015')) +
+    #scale_colour_manual(name="Error Bars",values=cols) + scale_fill_manual(name="Bar",values=cols)
+    # can't seem to get legend to work -- come back to
+    theme_classic()
+  
+  ggsave(paste(Name, ".pdf", sep=""), plot = Fig, width = 4, height = 3, units = "in") 
+  
+  fit_values
+}
+
+#================================================================================
+# Run 2020 version with all data
+Run_Ricker(Dat = SRdat_raw, BroodYears = c(2015,2016), Name = "2020_AllDat_new", seed = 36)
+
+#================================================================================
+# Now Run without "outliers" for 2020 sensitivity analysis
+SRdat_NoOutliers <- SRdat_raw %>% filter(!(Year %in% c(1999, 2000, 2007)))
+Run_Ricker(Dat = SRdat_NoOutliers, BroodYears = c(2015,2016), Name = "2020_NoOutliers_new", seed = 36)
+
+#=================================================================================
+# 2020 data starting in 2001
+SRdat_Start2001 <- SRdat_raw %>% filter(Year >= 2001)
+Start2001_Fit <- Run_Ricker(Dat = SRdat_Start2001, BroodYears = c(2015,2016), Name = "2020_Start2001_new", seed = 36)
+
+#=================================================================================
+# Now Run for 2019 -- try to recreate data that would have been used
+# in 2019 wouldn't have had rec4 in 2015, rec, rec5 from 2014
+SRdat2019 <- SRdat_raw
+SRdat2019$rec4[SRdat2019$Year == 2015] <- NA
+SRdat2019[SRdat2019$Year == 2014, c("rec5", "rec")] <- NA
+Run_Ricker(Dat = SRdat2019, BroodYears = c(2014,2015), Name = "2019_new", seed = 36)
+
+
+#=================================================================================
+# Also run for 2019 starting in 2001
+SRdat2019_Start2001 <- SRdat2019 %>% filter(Year >= 2001)
+Run_Ricker(Dat = SRdat2019_Start2001, BroodYears = c(2014,2015), Name = "2019_Start2001_new", seed = 36)
+
+#====================================================================
+
+# Calculate SMSY for Chilliwack
+
+# Use SRdat_Start2001
+
+# put Escape in eff_fem column so that function will run
+SRdat_Escape <- SRdat_Start2001
+SRdat_Escape$eff_fem <- SRdat_Escape$Escape
+Esc_Fit <- Run_Ricker(Dat = SRdat_Escape, BroodYears = c(2015,2016), 
+                      Name = "2020_TotalEsc", seed = 36, iter = 5000)
+
+SMSY_Quants <- quantile(Esc_Fit$SMSY, c(0.1, 0.25, 0.5, 0.75, 0.9))
+
+library(gsl)
+SMSY <- (1 - gsl::lambert_W0(exp(1 - median(Esc_Fit$a_rick)))) / -median(Esc_Fit$b_rick)
+# gives 20,000
+
+# what if estiamte SMSY based on median a and b?
+
+# For document for Karen want plot of SR relationship, posterior of SMSY, 
+#TS of Escapement over time with SMSY plotted on top with error bars
+
+SMSYs <- Esc_Fit$SMSY[Esc_Fit$SMSY > as.numeric(SMSY_Quants[1]) & Esc_Fit$SMSY < as.numeric(SMSY_Quants[5])]
+
+pdf("SMSY_Hist.pdf")
+hist(SMSYs, freq=F)
+dev.off()
+
+# lots of netagive SMSY -- this model is not working great, will use TMB model
+
+# Pull out other predictions (not brood years) to plot
+Pred_Mat <- as.matrix(Esc_Fit$rec_pred[, 3:102])
+Pred_x <- c(seq(1, max(SRdat_Escape$Escape, na.rm=T)*1.2, length = 100))
+
+# Turn this into bounds for plot
+Preds <- data.frame(Esc = Pred_x)
+Preds$Up <- Preds$Low <-  NA
+for(i in 1:dim(Preds)[1]){
+  Quants <- quantile(Esc_Fit$rec_pred[,i+2], c(0.1,0.25,0.5,0.75, 0.9))
+  Preds$Low[i] <- Quants[1]
+  Preds$MedLow[i] <- Quants[2]
+  Preds$Est[i] <- Quants[3]
+  Preds$MedUp[i] <- Quants[4]
+  Preds$Up[i] <- Quants[5]
+}
+
+# plot
+Preds <- Preds %>% arrange(Esc)
+
+Fig <- ggplot(data=Preds, mapping = aes(x=Esc, y=Est)) +
+  geom_line( col = "red", size = 2) +
+  geom_ribbon(aes(ymin = Low, ymax = Up, x=Esc), fill = "red", alpha = 0.2) +
+  geom_ribbon(aes(ymin = MedLow, ymax = MedUp, x=Esc), fill = "red", alpha = 0.4) +
+  geom_point(data=SRdat_Escape, mapping=aes(x=Escape,y=rec), size = 1.2) +
+  xlab("Total Spawners") + ylab("Recruits") +
+  coord_cartesian(ylim = c(0, 500000), xlim = c(0, 80000)) +
+  # add lines SMSY
+  geom_vline(xintercept = SMSY_Quants[3], linetype = "solid") +
+  geom_vline(xintercept = SMSY_Quants[2], linetype = "dashed") +
+  geom_vline(xintercept = SMSY_Quants[4], linetype = "dashed") +
+  geom_vline(xintercept = SMSY_Quants[5], linetype = "dotted") +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_continuous(labels = scales::comma) +
+  theme_classic()
+
+ggsave(paste("EscapeFit_SMSY.pdf", sep=""), plot = Fig, width = 4, height = 3, units = "in") 
+
+# what about using percentile benchmarks?
+
+Escape_Quants <- quantile(SRdat_Escape$Escape, c(0.1, 0.25, 0.5, 0.75, 0.9))
+
+# 75th percentile of escapement is 21,000
+
+# Based on these two values, I think using an approximate SMSY of 20,000 is defensible, but still highly uncertain
+
+
+dom_yrs <- seq(2004, 2019, by = 4)
+
+SRdat_Escape %>% filter(Year %in% dom_yrs) %>% summarise(mean(Escape))
+# 73,000 dominant years
+SRdat_Escape %>% filter(Year %in% dom_yrs) %>% summarise(quantile(Escape, c(0.75)))
+# 82,000
+SRdat_Escape %>% filter(!(Year %in% dom_yrs)) %>% summarise(mean(Escape))
+# 6,100
+
+pdf("Escape_TS_No_BMs.pdf")
+plot(SRdat_Escape$Year, SRdat_Escape$Escape, type = "o", 
+     xlab = "Year", ylab = "Escapement", main = "Chilliwack Escapement Since 2001")
+#abline(h=21000, col = "orange")
+#abline(h=82000, col = "red")
+dev.off()
