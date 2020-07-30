@@ -88,4 +88,6 @@ theme_bw()
   
 # jags and stan predictive intervals are a little bit wider, but pretty similar
 # Expect slight difference since TMB approach is pseudo-Bayesian
+
+# maybe also look at posteriors of alpha and beta from each bayesian model?
    

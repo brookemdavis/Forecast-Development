@@ -5,15 +5,15 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "1114906049",
+    "hash" : "777942112",
     "id" : "13EA0570",
-    "lastKnownWriteTime" : 1596056164,
-    "last_content_update" : 1596056164433,
+    "lastKnownWriteTime" : 1596133836,
+    "last_content_update" : 1596133836864,
     "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/Testing_Power_Models.R",
     "project_path" : "Code/Testing_Power_Models.R",
     "properties" : {
-        "cursorPosition" : "131,12",
-        "scrollLine" : "84"
+        "cursorPosition" : "91,0",
+        "scrollLine" : "68"
     },
     "read_only" : false,
     "read_only_alternatives" : [

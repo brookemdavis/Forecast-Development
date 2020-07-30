@@ -36,10 +36,11 @@ Smax ~ lognormal( logSmax_mean, logSmax_sig);
 }
 
 generated quantities {
+  real SMSY = logA*(0.5-0.07*logA)*Smax;
 vector[N] R_Pred;
 vector[N] R_Fit;
 for (i in 1:N){
- R_Pred[i] = lognormal_rng(A + B*log(S[i]), sigma);
- R_Fit[i] = exp(A + B*log(S[i]));
+ R_Pred[i] = lognormal_rng(logA + log(S[i]) -  S[i]/Smax, sigma);
+ R_Fit[i] = exp(logA + log(S[i]) -  S[i]/Smax);
 }
 }

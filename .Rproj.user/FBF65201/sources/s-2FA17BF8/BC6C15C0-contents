@@ -360,7 +360,7 @@ RunPower <- function(Data,
     data$logR <- log(Data$R/Scale)
     data$Scale <- Scale
     data$Priors <- as.numeric(Priors)
-    if(Fitting_SW =="tmbstan") data$Bayes <- 1
+    if(Fitting_SW =="tmbstan"){ data$Bayes <- 1}
   }
   
   # if using TMB, stan variance is defined using sd
@@ -387,7 +387,7 @@ RunPower <- function(Data,
   #==========
   if( Fitting_SW == "TMB") {
     # Now Fit TMB model
-    obj <- MakeADFun(data, param, DLL="Single_Stock_Ricker", silent=TRUE)
+    obj <- MakeADFun(data, param, DLL="Single_Stock_Power", silent=TRUE)
     opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1e5, iter.max = 1e5))
     
     # pull out estimates from ML fit
@@ -423,7 +423,7 @@ RunPower <- function(Data,
   #====================
   if(Fitting_SW == "tmbstan"){
     # set up and fit TMB model
-    obj <- MakeADFun(data, param, DLL="Single_Stock_Ricker", silent=TRUE)
+    obj <- MakeADFun(data, param, DLL="Single_Stock_Power", silent=TRUE)
     opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1e5, iter.max = 1e5))
     # now fit as mcmc
     fitmcmc <- tmbstan(obj, chains=3, iter=100000, init=list(opt$par), 
@@ -465,7 +465,7 @@ RunPower <- function(Data,
     
     init_vals <- list(param, param, param) # come back, this could be better
     
-    JagsFit <- jags(data, inits = init_vals, model.file = Ricker.model.MCMC, 
+    JagsFit <- jags(data, inits = init_vals, model.file = Power.model.MCMC, 
                     n.chains =3, n.iter=10000, n.burnin = 4000, n.thin = 3, 
                     parameters.to.save = c("R_Fit", "R_Pred", "A", "B", "sigma"))
     
@@ -492,7 +492,7 @@ RunPower <- function(Data,
   if(Fitting_SW == "Stan"){
     
     #run stan model
-    stan_fit <- stan(file = 'Code/STAN/Single_Stock_Ricker.stan', data = data, iter = 50000, 
+    stan_fit <- stan(file = 'Code/STAN/Single_Stock_Power.stan', data = data, iter = 50000, 
                      chains = 3,  control = list(adapt_delta = 0.95))
     
     All_Ests <- data.frame(summary(stan_fit)$summary)

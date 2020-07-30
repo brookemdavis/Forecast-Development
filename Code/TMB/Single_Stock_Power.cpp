@@ -22,8 +22,8 @@ Type objective_function<Type>::operator() ()
   int N_Obs = S.size(); 
   vector<Type> logR_Fit(N_Obs);
   vector<Type> R_Fit(N_Obs);
-  Type B = exp(logA);
-  Type A = exp(logB);
+  Type B = exp(logB);
+  Type A = exp(logA);
   
   
   for(int i=0; i<N_Obs; ++i){

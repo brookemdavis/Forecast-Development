@@ -22,7 +22,7 @@ real<lower=0> sigma; // error scale
 model {
 vector[N] logR_Fit;
 logR_Fit = A + B*log(S);
-R_Obs ~ normal(logR_Fit, sigma); // likelihood
+R_Obs ~ lognormal(logR_Fit, sigma); // likelihood
 
 //Priors
 // normal prior on a
@@ -36,11 +36,11 @@ B ~ normal( B_mean, B_sig);
 }
 
 generated quantities {
-real SMSY = logA*(0.5-0.07*logA)*Smax;
 vector[N] R_Pred;
 vector[N] R_Fit;
 for (i in 1:N){
- R_Pred[i] = lognormal_rng(logA + log(S[i]) -  S[i]/Smax, sigma);
- R_Fit[i] = exp(logA + log(S[i]) -  S[i]/Smax);
+ R_Pred[i] = lognormal_rng(A + B*log(S[i]), sigma);
+ R_Fit[i] = exp(A + B*log(S[i]));
+ 
 }
 }
