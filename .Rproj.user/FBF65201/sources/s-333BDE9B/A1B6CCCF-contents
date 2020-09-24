@@ -41,7 +41,7 @@ Type objective_function<Type>::operator() ()
                                         exp(logB(1))*S(i-1) - 
                                         exp(logB(2))*S(i-2) - 
                                         exp(logB(3))*S(i-3) ;
-      ans += -dnorm(logR_Fit(i-N_Bs+1), logR(i),  sigma, true);
+      ans += -dnorm( logR(i), logR_Fit(i-N_Bs+1),  sigma, true);
       R_Fit(i-N_Bs+1) = exp(logR_Fit(i-N_Bs+1))*Scale;
     }
 
