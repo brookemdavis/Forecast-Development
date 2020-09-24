@@ -839,18 +839,19 @@ RunLarkin <-  function(Data,
     R_Fits_Stan <- All_Ests[grepl("R_Fit", All_Ests$Param),  ]
     R_Preds_Stan <- All_Ests[grepl("R_Pred", All_Ests$Param),  ]
     
-    FitsDF <- data.frame(S = Data$S, R = Data$R, Fit = R_Fits_Stan$X50. * Scale, 
-                         Year = 1:dim(R_Fits_Stan)[1],   Mod = Name,
-                         CI_up = R_Fits_Stan$X97.5. * Scale,
-                         CI_low = R_Fits_Stan$X2.5. * Scale,
-                         Pred = R_Preds_Stan$X50. * Scale,
-                         Pred_up = R_Preds_Stan$X97.5. * Scale,
-                         Pred_low = R_Preds_Stan$X2.5. * Scale)
+    FitsDF <- data.frame(S = Data$S, R = Data$R, 
+                         Fit =c(rep(NA, length(B_means)-1),  R_Fits_Stan$X50. * Scale), 
+                         Year = 1:dim(Data)[1],   Mod = Name,
+                         CI_up = c(rep(NA, length(B_means)-1), R_Fits_Stan$X97.5. * Scale),
+                         CI_low = c(rep(NA, length(B_means)-1), R_Fits_Stan$X2.5. * Scale),
+                         Pred = c(rep(NA, length(B_means)-1), R_Preds_Stan$X50. * Scale),
+                         Pred_up = c(rep(NA, length(B_means)-1), R_Preds_Stan$X97.5. * Scale),
+                         Pred_low = c(rep(NA, length(B_means)-1), R_Preds_Stan$X2.5. * Scale))
     
     # get A and Smax posteriors
     fit_values <- extract(stan_fit)
     A_Post <- exp(fit_values$logA)
-    Smax_Post <- fit_values$Smax * Scale
+    #Smax_Post <- fit_values$Smax * Scale
     
   } # end stan fit
   
@@ -907,10 +908,10 @@ Power.model.MCMC <- function(){
 # Larkin Model
 Larkin.model.MCMC <- function(){
   for(i in 4:N) {               		#loop over N sample points
-    R_Obs[i] ~ dlnorm(R_Fit[i], tau)		        
-    R_Fit[i] <- RS_log[i] + log(S[i])						
-    RS_log[i] <-logA-beta0*S[i]-beta1*S[i-1]-beta2*S[i-2]-beta3*S[i-3]  
-    R_Pred[i] ~ dlnorm(R_Fit[i],tau)
+    logR_Fit[i-3] <- logA + log(S[i])-beta0*S[i]-beta1*S[i-1]-beta2*S[i-2]-beta3*S[i-3]
+    R_Obs[i] ~ dlnorm(logR_Fit[i-3], tau)	 # likelihood
+    R_Pred[i-3] ~ dlnorm(logR_Fit[i-3],tau)
+    R_Fit[i-3] <- exp(logR_Fit[i-3])
   }
   
   logA ~ dnorm(logA_mean,logA_tau)     	# prior for alpha

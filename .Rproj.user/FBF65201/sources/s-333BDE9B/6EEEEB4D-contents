@@ -1,0 +1,15 @@
+Ricker.model.MCMC <- function(){
+  for (i in 1:N) {                       #loop over N sample points
+    R_Obs[i] ~ dlnorm(logR_Fit[i], tau)          #likelihood -> predicted value for NA in data set
+    logR_Fit[i] <-  logA - beta * S[i] + log(S[i])               # calc log(R) - fitted values  
+    R_Fit[i] <- exp(logR_Fit[i])
+    R_Pred[i] ~ dlnorm(logR_Fit[i],tau)
+  }
+  
+  logA ~ dnorm(logA_mean, logA_tau)       
+  beta <-1/Smax					   # prior for beta
+  Smax ~ dlnorm(logSmax_mean, logSmax_tau)       			   # prior for beta 
+  tau ~ dgamma(Sig_Gam_Dist,Sig_Gam_Dist)                    #prior for precision parameter
+  sigma <- 1/sqrt(tau) 		   	
+  
+}

@@ -90,8 +90,8 @@ Stan_True_Prior <- RunLarkin(Data = DataDF,  Fitting_SW = "Stan",
                              B_means = SimData$true_b, B_sigs = SimData$true_b/4) 
 
 
-All_Ests <- bind_rows(DataDF, TMB_No_Prior$Fit, TMB_True_Prior$Fit, tmbstan_True_Prior$Fit) #,
-                      #JAGS_True_Prior$Fit, Stan_True_Prior$Fit)
+All_Ests <- bind_rows(DataDF, TMB_No_Prior$Fit, TMB_True_Prior$Fit, tmbstan_True_Prior$Fit,
+                      JAGS_True_Prior$Fit, Stan_True_Prior$Fit)
 
 # Now plot all to compare 
 ggplot(data = All_Ests, aes(x=S, y=Fit, ymin = CI_low, ymax = CI_up, col = Mod, fill= Mod)) +
@@ -110,28 +110,12 @@ Bayes_Mods <- list("tmbstan_True_Prior" = tmbstan_True_Prior,
                    "JAGS_True_Prior" = JAGS_True_Prior, 
                    "Stan_True_Prior" = Stan_True_Prior)
 
-Posts <- data.frame(A_Scaled = numeric(), B = numeric(), Mod = character())
 
-for(i in 1:length(Bayes_Mods)){
-  New_Rows <- data.frame(A_Scaled = Bayes_Mods[[i]]$A_Post, B = Bayes_Mods[[i]]$B_Post, Mod = names(Bayes_Mods)[[i]])
-  Posts <- bind_rows(Posts, New_Rows)
-}
-
-#  A is messed up by scale, need to put back into same scale as true
-# Scale will be same across all models
-Scale <- TMB_No_Prior$Scale
-Posts <- Posts %>% mutate(A = A_Scaled + (1-B)*log(Scale))
 
 # Also Add two tmb estimates
-A_No_Prior_Scaled <- TMB_No_Prior$Ests %>% filter(Param == "A") %>% pull(Estimate)
-A_True_Prior_Scaled <- TMB_True_Prior$Ests %>% filter(Param == "A") %>% pull(Estimate)
-# Also Add two tmb estimates
-B_No_Prior <- TMB_No_Prior$Ests %>% filter(Param == "B") %>% pull(Estimate) 
-B_True_Prior <- TMB_True_Prior$Ests %>% filter(Param == "B") %>% pull(Estimate) 
+A_No_Prior <- TMB_No_Prior$Ests %>% filter(Param == "A") %>% pull(Estimate)
+A_True_Prior <- TMB_True_Prior$Ests %>% filter(Param == "A") %>% pull(Estimate)
 
-# Fix these too
-A_No_Prior <- A_No_Prior_Scaled + (1-B_No_Prior)*log(Scale)
-A_True_Prior <- A_True_Prior_Scaled + (1-B_True_Prior)*log(Scale)
 
 ggplot(Posts, aes(A, stat(density), col = Mod)) +
   geom_freqpoly() +
@@ -140,14 +124,5 @@ ggplot(Posts, aes(A, stat(density), col = Mod)) +
   geom_vline(xintercept = SimData$true_a, col = "black", linetype = "dashed") +
   theme_bw()
 
-# look good, priors have small effect
-# don't return exact true value though
-
-ggplot(Posts, aes(B, stat(density), col = Mod)) +
-  geom_freqpoly() +
-  geom_vline(xintercept = B_No_Prior, col = "black") +
-  geom_vline(xintercept = B_True_Prior, col = "darkgrey") +
-  geom_vline(xintercept = SimData$true_b, col = "black", linetype = "dashed") +
-  theme_bw()
-
+# JAGS looks very different -- but closer to true.
 
