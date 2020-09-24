@@ -53,10 +53,12 @@ Type objective_function<Type>::operator() ()
   DATA_SCALAR(logSmax_mean);
   DATA_SCALAR(logSmax_sig);
   DATA_INTEGER(Bayes);
+  //DATA_SCALAR(Sgen_sig);
   
   PARAMETER(logA);
   PARAMETER(logSigma);
   PARAMETER(logSmax);
+  //PARAMETER(logSgen);
 
   Type ans=0;
   Type sigma=exp(logSigma);
@@ -91,6 +93,13 @@ Type objective_function<Type>::operator() ()
  // Approach from Scheurell 2016
  Type SMSY =  (1 - LambertW(exp(1-logA)) ) / B ;
  
+ //Estimate Sgen
+ // Type Sgen = exp(logSgen);
+ // Type LogSMSY = logA + logSgen - B * Sgen;
+ // Type Diff = exp(LogSMSY) - SMSY;
+ // ans -= dnorm(Diff, 0, Sgen_sig, true);
+ 
+ 
  SIMULATE {
    vector<Type> R_Pred(N_Obs);
    for(int i=0; i<N_Obs; ++i){
@@ -104,6 +113,7 @@ Type objective_function<Type>::operator() ()
   ADREPORT(sigma);
   ADREPORT(R_Fit);
   ADREPORT(SMSY);
+  //ADREPORT(Sgen);
   REPORT(R_Fit);
   return ans;
   

@@ -1,8 +1,0 @@
-"0","#dyn.unload(dynlib(""Code/TMB/SigmaTest""))
-#TMB::compile(""Code/TMB/SigmaTest.cpp"")
-dyn.load(dynlib(""Code/TMB/SigmaTest""))
-"
-"2","Error in inDL(x, as.logical(local), as.logical(now), ...) : 
-  unable to load shared object 'C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/Code/TMB/SigmaTest.dll':
-  LoadLibrary failure:  The specified module could not be found.
-"

@@ -1,4 +1,4 @@
-# run power model for fennel, maybe Nadina? to get idea of possible parameters
+# Test/Compare SR models using different software/priors
 
 library(dplyr)
 library(ggplot2)
