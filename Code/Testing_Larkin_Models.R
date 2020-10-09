@@ -110,6 +110,13 @@ Bayes_Mods <- list("tmbstan_True_Prior" = tmbstan_True_Prior,
                    "JAGS_True_Prior" = JAGS_True_Prior, 
                    "Stan_True_Prior" = Stan_True_Prior)
 
+Posts <- data.frame(A = numeric(), Mod = character())#, B = numeric())
+
+for(i in 1:length(Bayes_Mods)){
+  New_Rows <- data.frame(A = Bayes_Mods[[i]]$A_Post, Mod = names(Bayes_Mods)[[i]])#, B = Bayes_Mods[[i]]$B_Post)
+  Posts <- bind_rows(Posts, New_Rows)
+}
+
 
 
 # Also Add two tmb estimates
