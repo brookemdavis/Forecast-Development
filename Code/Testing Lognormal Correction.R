@@ -3,7 +3,7 @@
 library(dplyr)
 library(ggplot2)
 library(TMB)
-library(tmbstan)
+#library(tmbstan)
 source("Code/Functions.R")
 
 #================================================================================
@@ -15,7 +15,8 @@ dyn.load(dynlib("Code/TMB/Single_Stock_Ricker"))
 
 # Simulate some basic Ricker data - don't use lognormal correction
 
-SimData <- fake_SR_data(leng=50, age=4, Sig_Ricker = 0.8, true_a = rnorm(1, 5, 2), true_b=1/100000,
+set.seed(1004)
+SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.8, true_a = rnorm(1, 5, 2), true_b=1/100000,
                         hr_min = 0.2, hr_max = 0.8, lnorm_corr = F)
 
 SimDataDF <- data.frame(S = round(SimData$S), R = (SimData$R), Year = 1:length(SimData$S))
@@ -29,9 +30,10 @@ DataDF$Mod <- "True"
 DataDF$CI_low <- DataDF$CI_up  <-  DataDF$Pred <- DataDF$Pred_low <- DataDF$Pred_up <- DataDF$Fit
 
 # run using TMB, without prior
+# Switch BiasCorr between T and F and plot to see impact of bias correction in LL
 TMB_No_Prior <- RunRicker(Data = SimDataDF, 
                           Fitting_SW = "TMB", 
-                          Priors = F, Name = "TMB_No_Prior")
+                          Priors = F, BiasCorr=T, Name = "TMB_No_Prior")
 
 
 All_Ests <- bind_rows(DataDF, TMB_No_Prior[[1]])
@@ -41,16 +43,21 @@ ggplot(data = All_Ests, aes(x=S, y=Fit, ymin = CI_low, ymax = CI_up, col = Mod, 
   geom_line(size = 1.5) +
   geom_ribbon( alpha = 0.1) +
   geom_point(aes(x=S, y=R), col = "black") +
-  geom_ribbon(aes(x=S, y=Pred, ymin = Pred_low, ymax = Pred_up, fill= Mod), 
-              alpha = 0.05) +
-  theme_bw()
+  #geom_ribbon(aes(x=S, y=Pred, ymin = Pred_low, ymax = Pred_up, fill= Mod), 
+  #            alpha = 0.05) +
+  scale_color_discrete(name = "", labels = c("Estimated curve with\nbias correction in LL", "True: median")) + 
+  guides(fill = FALSE)  +
+  xlab("Spawners") + 
+  ylab("Recruitment") +
+  theme_bw(base_size=16)
 
 
 # now take estimated values and simulate using those, with and without correction
 
 # now re-simulate data from these estimates
 Ests <- TMB_No_Prior[[2]]
-SimData_NoCorr <- fake_SR_data(leng=50, age=4, Sig_Ricker = Ests$Estimate[Ests$Param=="sigma"], 
+
+SimData_NoCorr <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = Ests$Estimate[Ests$Param=="sigma"], 
                                true_a = Ests$Estimate[Ests$Param=="A"], 
                                true_b = 1/(Ests$Estimate[Ests$Param=="Smax"]*TMB_No_Prior[[3]]),
                                hr_min = 0.2, hr_max = 0.8, lnorm_corr = F)
@@ -59,10 +66,10 @@ NoCorr_DF <- data.frame(S = round(SimData_NoCorr$S), R = (SimData_NoCorr$R),
                         Year = 1:length(SimData_NoCorr$S), Mod = "NoCorr_True")
 
 
-SimData_Corr <- fake_SR_data(leng=50, age=4, Sig_Ricker = Ests$Estimate[Ests$Param=="sigma"], 
-                               true_a = Ests$Estimate[Ests$Param=="A"], 
-                               true_b = 1/(Ests$Estimate[Ests$Param=="Smax"]*TMB_No_Prior[[3]]),
-                               hr_min = 0.2, hr_max = 0.8, lnorm_corr = T)
+SimData_Corr <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = Ests$Estimate[Ests$Param=="sigma"], 
+                             true_a = Ests$Estimate[Ests$Param=="A"], 
+                             true_b = 1/(Ests$Estimate[Ests$Param=="Smax"]*TMB_No_Prior[[3]]),
+                             hr_min = 0.2, hr_max = 0.8, lnorm_corr = T)
 
 Corr_DF <-  data.frame(S = round(SimData_Corr$S), R = (SimData_Corr$R), 
                        Year = 1:length(SimData_Corr$S), Mod = "Corr_True")
@@ -73,22 +80,29 @@ ggplot(Data_All, aes(x=S, y=R, col = Mod)) + geom_point() + coord_fixed()
 
 
 # Now fit to both and compare
-# run using TMB, without prior
-TMB_No_Corr <- RunRicker(Data = SimData_NoCorr, 
-                          Fitting_SW = "TMB", 
-                          Priors = F, Name = "TMB_No_Corr")
+# run using TMB, without prior, and estimating median curve (without bias correction in LL)
+TMB_No_Corr <- RunRicker(Data = SimData_NoCorr,
+                          Fitting_SW = "TMB",
+                          Priors = F, BiasCorr = F, Name = "TMB_No_Corr")
 TMB_Corr <- RunRicker(Data = SimData_Corr, 
                          Fitting_SW = "TMB", 
-                         Priors = F, Name = "TMB_Corr")
+                         Priors = F, BiasCorr = F, Name = "TMB_Corr")
+
+Data_All <- Data_All %>% filter (Mod=="True") #Removed simulated data as plot was too busy; keep curves estimated from simulated data
 All_Ests <- bind_rows(Data_All, TMB_No_Corr[[1]], TMB_Corr[[1]])
- 
+
  ggplot(data = All_Ests, aes(x=S, y=Fit, ymin = CI_low, ymax = CI_up, col = Mod, fill= Mod)) +
    geom_line(size = 1.5) +
    geom_ribbon( alpha = 0.1) +
    geom_point(aes(x=S, y=R, col = Mod)) +
-   geom_ribbon(aes(x=S, y=Pred, ymin = Pred_low, ymax = Pred_up, fill= Mod), 
-               alpha = 0.05) +
-   theme_bw()
+   #geom_ribbon(aes(x=S, y=Pred, ymin = Pred_low, ymax = Pred_up, fill= Mod), 
+  #             alpha = 0.05) +
+   scale_color_discrete(name = "", labels = c("Projected with bias correction", "Projected w/o bias correction", "True: mean")) + 
+   scale_fill_discrete(name = "", labels = c("Projected with bias correction", "Projected w/o bias correction", "True: mean")) + 
+   xlab("Spawners") + 
+   ylab("Recruitment") +
+   xlim(0,250000) + 
+   theme_bw(base_size=16)
  
  # do this 100 times and see what difference in estimtes or trajectories are?
  

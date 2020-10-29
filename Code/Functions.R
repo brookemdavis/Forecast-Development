@@ -206,6 +206,7 @@ Sim_Larkin_SR_Data <- function( leng=20, age=4, Sig_Larkin = 0.2, true_a = 3, tr
 RunRicker <- function(Data, 
                       Fitting_SW = "TMB", # which model fitting software to use? TMB, Stan, tmbstan, JAGS
                       Priors = T, # if fitting with TMB, have option not use priors
+                      BiasCorr = F, #Should a bias correction be included in the LL?
                       Name = "Test", # Name to put in Mod column
                       logA_mean = 0,logA_sig = 0, # priors on logAlpha
                       Sig_Gam_Dist = 0.001, # inverse gamma shape and scale param
@@ -224,7 +225,8 @@ RunRicker <- function(Data,
   data$logSmax_mean <- log(Smax_mean/Scale)
   # set Bayes to 0, switch to one if using tmbstan
   data$Bayes <- 0
-  
+  # Add a bias correction in Ricker estimation
+  data$BiasCorr <- as.numeric(BiasCorr)
   # set up starting values
   param <- list()
   param$logA <- 1

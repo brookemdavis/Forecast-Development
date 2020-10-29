@@ -46,6 +46,7 @@ Type objective_function<Type>::operator() ()
   DATA_VECTOR(S);
   DATA_VECTOR(logR);
   DATA_INTEGER(Priors);
+  DATA_INTEGER(BiasCorr);
   DATA_INTEGER(Scale);
   DATA_SCALAR(logA_mean);
   DATA_SCALAR(logA_sig);
@@ -72,7 +73,15 @@ Type objective_function<Type>::operator() ()
   
   for(int i=0; i<N_Obs; ++i){
     logR_Fit(i) = logA + log(S(i)) -  S(i)/Smax;
-    ans += -dnorm(logR(i), logR_Fit(i), sigma, true);
+    if(BiasCorr == 0){
+      ans += -dnorm(logR(i), logR_Fit(i), sigma, true);
+    }
+    if(BiasCorr == 1){
+      // Back-transformation bias correction. These two versions give the same answer:
+      //ans += -dnorm(logR(i)-logR_Fit(i), -pow(sigma,2)/Type(2), sigma, true);
+      ans += -dnorm(logR(i) - logR_Fit(i) + pow(sigma,2)/Type(2), Type(0), sigma, true);
+      
+    }
     R_Fit(i) = exp(logR_Fit(i))*Scale;
   }
  
