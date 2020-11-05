@@ -15,8 +15,8 @@ dyn.load(dynlib("Code/TMB/Single_Stock_Ricker"))
 
 # Simulate some basic Ricker data - don't use lognormal correction
 
-set.seed(100)#(1004)
-ntrials <- 1000
+#set.seed(1004)
+ntrials <- 100
 RicPars <- matrix(NA, ntrials, 4)
 
 for (i in 1:ntrials) {
@@ -29,7 +29,7 @@ for (i in 1:ntrials) {
   
   # Create DF to store true and fitted values
   DataDF <- SimDataDF[, c("S", "R", "Year")]
-  DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) #* exp(Sig_Ricker^2/2)
+  DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) 
   DataDF$Mod <- "True"
   DataDF$CI_low <- DataDF$CI_up  <-  DataDF$Pred <- DataDF$Pred_low <- DataDF$Pred_up <- DataDF$Fit
   
@@ -46,30 +46,42 @@ for (i in 1:ntrials) {
 }
 
 
+# Set up data frame of Ricker paramters for all MC trials
 
 colnames(RicPars) <- c("logA", "logSmax", "logSigma", "Scale")
 RicPars <- as.data.frame(RicPars)
+RicPars <- RicPars %>% mutate(Smax = exp(logSmax)*Scale) 
 
-# Remove all MC trials with productivity less than 1 (logA < 0)
+# Tune simulations by remove all MC trials with productivity less than 1 (logA < 0)
+
 RicPars <- RicPars %>% filter(logA >= 0)
-# Remove all MC trials with Smax > 100x the true Smax (1 million). I don't think this constratint is needed
-RicPars <- RicPars %>% mutate(Smax = exp(logSmax)*Scale) #%>% filter(Smax <= 1000000)
 ntrialsTuned <- length (RicPars$logA)
 
 
+# Calculate predicted recruitments for all MC trials along a range of spawner abundances
 S <- NA
-Rpred <- matrix(NA, 1500, ntrialsTuned)
+Rpred <- matrix(NA, 2000, ntrialsTuned)
 
 for (i in 1:ntrialsTuned) {
-  for (j in 1:1500){ #Assuming true smax ~ 100,000, and plot extends to 1.5 x Smax
+  for (j in 1:2000){ #Assuming true smax ~ 100,000, and plot extends to 2 x Smax
     S[j] <- j*100
     Rpred[j,i] <-  exp( RicPars$logA[i] ) * S[j] * exp( -S[j] / RicPars$Smax[i] )
   }
 }
 
+# Calculate 5th, 50th, and 95th percentiles of the distribution of recruitment along
+# the range of spawner abundances
+
 Rpred_dist <- apply(Rpred, 1, quantile, probs = c(0.025, 0.5, 0.975))
+Rpred_mean <- apply(Rpred, 1, mean) 
+
+
+# Create a dataframe of these percentiles
 EstAgg <- data.frame(S=S, Fit=Rpred_dist[2,], CI_low=Rpred_dist[1,], CI_up = Rpred_dist[3,])
 EstAgg$Mod <- "TMB_No_Prior"
+
+# I get the same answer when I plot mean of the disribiton of recruitments instead of the median
+# EstAgg <- data.frame(S=S, Fit=Rpred_mean, CI_low=Rpred_dist[1,], CI_up = Rpred_dist[3,])
 
 
 if(ntrials ==1){
