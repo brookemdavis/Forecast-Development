@@ -9,7 +9,7 @@ Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, tr
   SRep<- log(true_a) / true_b
   # Calculate spawners at MSY (approximation; Hilborn and Walters 1992)
   SMSY <- SRep * ( 0.5 - 0.07*log(true_a) )
-  
+
   # solve for Sgen
   ObjectiveSGen <- function( S, SpMSY, alpha, beta ) {
     # Recruits to get to SMSY (Holt et al. 2009)
@@ -22,11 +22,11 @@ Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, tr
     return( negLL )
   }  # End ObjectiveSGen function
   
-  opt <- optimize( f=ObjectiveSGen, interval=c(0, SMSY), SpMSY=SMSY,
-                   alpha=true_a, beta=true_b )
-
-  # Get SGen from the optimized output (i.e., minimum neg log-like)
-  SGen <- opt$minimum
+  # opt <- optimize( f=ObjectiveSGen, interval=c(0, SMSY), SpMSY=SMSY,
+  #                  alpha=true_a, beta=true_b )
+  # 
+  # # Get SGen from the optimized output (i.e., minimum neg log-like)
+  # SGen <- opt$minimum
   
   # initiate population somwhere between 100 and Smax
   init <- round(runif(4, 100, 1/true_b))
@@ -78,7 +78,7 @@ Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, tr
                R=rec[(age+1):(leng+age)],
                S=esc[1:leng], 
                catch=catch[(age+1):(leng+age)], 
-               catch_obs=catch_obs, esc_obs=esc_obs, SGen = SGen)
+               catch_obs=catch_obs, esc_obs=esc_obs)#, SGen = SGen)
   return(output)
   
 }
