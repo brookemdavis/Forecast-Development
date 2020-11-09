@@ -58,13 +58,17 @@ Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, tr
       }
     }
     if(lnorm_corr == F){ 
-      rec[i] <- max(R_mean*exp(eps[i]), 100) 
+      # rec[i] <- max(R_mean*exp(eps[i]), 100) 
+      rec[i] <- R_mean*exp(eps[i]) 
     } else {
-      rec[i] <- max(R_mean*exp(eps[i]-0.5*Sig^2), 100)
+      #rec[i] <- max(R_mean*exp(eps[i]-0.5*Sig^2), 100)
+      rec[i] <- R_mean*exp(eps[i]-0.5*Sig^2)
     }
     # want to find way to make sure pop gets knocked down every once in a while
-    if(sum(esc[(i-4):(i-1)] > SMSY) == 4) { hr_vec[i] <- hr_max}
-    esc[i] <- max((1-hr_vec[i])*rec[i], 100)
+    # if(sum(esc[(i-4):(i-1)] > SMSY) == 4) { hr_vec[i] <- hr_max}
+    # esc[i] <- max((1-hr_vec[i])*rec[i], 100)
+    
+    esc[i] <- (1-hr_vec[i])*rec[i]
     catch[i] <- hr_vec[i]*rec[i]
   }
 
@@ -307,7 +311,7 @@ RunRicker <- function(Data,
     opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1e5, iter.max = 1e5))
     # now fit as mcmc
     fitmcmc <- tmbstan(obj, chains=3, iter=10000, init=list(opt$par), 
-                       control = list(adapt_delta = 0.95))
+                       control = list(adapt_delta = 0.99))#0.95))
     # pull out posterior vals
     All_Ests <- as.matrix(fitmcmc)
     
