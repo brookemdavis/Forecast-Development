@@ -3,7 +3,7 @@
 library(dplyr)
 library(ggplot2)
 library(TMB)
-library(tmbstan)
+#library(tmbstan)
 source("Code/Functions.R")
 
 #================================================================================
@@ -23,7 +23,7 @@ Fitting_SW <- "tmbstan"#"TMB"
 for (i in 1:ntrials) {
   print(cat(i," of ", ntrials, "ntrials"))
   SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.8, true_a = 1.93, true_b=1/159744, #true_a = rnorm(1,5, 2)
-                                hr_min = 0.25, hr_max = 0.35, lnorm_corr = F)
+                                hr_min = 0.25, hr_max = 0.35, lnorm_corr = T)
   # The code below has the expanded alpha value (Hilborn and Walters 1992), and gives the same simulated data as above with lnorm_corr= F. 
   # Note, Hilborn and  Walaters 1992 show corrections to alpha and SREP, but SMAX (1/b) remains constant
   # SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.8, true_a = exp(log(5)+0.8^2/2), true_b=1/100000, #true_a = rnorm(1,5, 2)
@@ -43,7 +43,7 @@ for (i in 1:ntrials) {
   # Switch BiasCorr between T and F and plot to see impact of bias correction in LL
   TMB_No_Prior <- RunRicker(Data = SimDataDF, 
                             Fitting_SW = Fitting_SW, #"tmbstan",#"TMB", 
-                            Priors = F, BiasCorr=F, Name = "TMB_No_Prior")
+                            Priors = T, BiasCorr=F, Name = "TMB_No_Prior")
   
   if( Fitting_SW == "tmbstan") {
     Ests_quant <- apply ( as.data.frame(TMB_No_Prior$Ests) , 2, quantile, probs = c(0.025, 0.5, 0.975) )
@@ -115,7 +115,7 @@ ggplot(data = All_Ests, aes(x=S, y=Fit, ymin = CI_low, ymax = CI_up, col = Mod, 
   geom_point(aes(x=S, y=R), col = "black") +
   #geom_ribbon(aes(x=S, y=Pred, ymin = Pred_low, ymax = Pred_up, fill= Mod), 
   #            alpha = 0.05) +
-  scale_color_discrete(name = "", labels = c("Estimated curve w/o\nbias correction in LL", "True")) + 
+  scale_color_discrete(name = "", labels = c("Estimated curve w/o\nbias correction in LL", "OM")) + 
   guides(fill = FALSE)  +
   xlab("Spawners") + 
   ylab("Recruitment") +

@@ -214,21 +214,17 @@ RunRicker <- function(Data,
                       Name = "Test", # Name to put in Mod column
                       logA_mean = 0,logA_sig = 0, # priors on logAlpha
                       Sig_Gam_Dist = 0.001, # inverse gamma shape and scale param
-                      Smax_mean = 0, Smax_sig = 0) { # priors on capacity, Smax
+                      Smax_mean = as.numeric(quantile(Data$S, 0.8)), Smax_sig = as.numeric(quantile(Data$S, 0.8)) / 2 ) { # priors on capacity, Smax
  
   # Want to scale down obs to make models more stable
   # only really required for TMB, but will use for all models
-    Scale <- 10^(floor(log(mean(Data$R), 10)))
+  Scale <- 10^(floor(log(mean(Data$R), 10)))
 
   # Set up data and starting value lists list to go into model
   # these are the same regardless of software
   data <- list() #data inputs
   data$S <- Data$S/Scale 
-  data$logA_mean <- logA_mean
-  data$Sig_Gam_Dist <- Sig_Gam_Dist
   data$logSmax_mean <- log(Smax_mean/Scale)
-  # set Bayes to 0, switch to one if using tmbstan
-  data$Bayes <- 0
   # Add a bias correction in Ricker estimation
   data$BiasCorr <- as.numeric(BiasCorr)
   # set up starting values
@@ -242,21 +238,29 @@ RunRicker <- function(Data,
     data$Scale <- Scale
     data$Priors <- as.numeric(Priors)
     param$logSmax <- log(as.numeric(quantile(Data$S, 0.8)/Scale))
-    if(Fitting_SW =="tmbstan") data$Bayes <- 1
   }
   
-  # if using TMB, stan variance is defined using sd
+  # if using TMB, tmbtsand or STAN variance is defined using sd
   if(Fitting_SW %in% c("TMB", "Stan", "tmbstan")){
-    data$logA_sig <- logA_sig
     data$logSmax_sig <- Smax_sig/Scale
     param$logSigma <- -2
+  }
+  # if using stan (or Jags??)
+  if(Fitting_SW %in% c("Stan")){
+    data$logA_sig <- logA_sig
+    
   }
   
   # if jags or stan need R_Obs rather than logR, and N
   if(Fitting_SW %in% c("JAGS", "Stan")){
+    
     data$R_Obs <- Data$R/Scale
     data$N <- dim(Data)[1]
     param$Smax <- as.numeric(quantile(Data$S, 0.8)/Scale)
+    
+    data$logA_mean <- logA_mean
+    data$Sig_Gam_Dist <- Sig_Gam_Dist
+    
   }
   
   # if using jags, variance is defined using precision (1/variance)
@@ -311,7 +315,7 @@ RunRicker <- function(Data,
     opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1e5, iter.max = 1e5))
     # now fit as mcmc
     fitmcmc <- tmbstan(obj, chains=3, iter=10000, init=list(opt$par), 
-                       control = list(adapt_delta = 0.99))#0.95))
+                       control = list(adapt_delta = 0.95))#0.99))
     # pull out posterior vals
     All_Ests <- as.matrix(fitmcmc)
     

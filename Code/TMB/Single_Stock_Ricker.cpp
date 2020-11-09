@@ -48,18 +48,12 @@ Type objective_function<Type>::operator() ()
   DATA_INTEGER(Priors);
   DATA_INTEGER(BiasCorr);
   DATA_INTEGER(Scale);
-  DATA_SCALAR(logA_mean);
-  DATA_SCALAR(logA_sig);
-  DATA_SCALAR(Sig_Gam_Dist);
   DATA_SCALAR(logSmax_mean);
   DATA_SCALAR(logSmax_sig);
-  DATA_INTEGER(Bayes);
-  //DATA_SCALAR(Sgen_sig);
-  
+
   PARAMETER(logA);
   PARAMETER(logSigma);
   PARAMETER(logSmax);
-  //PARAMETER(logSgen);
 
   Type ans=0;
   Type sigma=exp(logSigma);
@@ -87,14 +81,6 @@ Type objective_function<Type>::operator() ()
  
  // Add priors
  if(Priors == 1){
-  // Prior on logalpha -- no jacobian since same form as parameter
-  ans -= dnorm(logA, logA_mean, logA_sig, true);
-   // gamma prior on 1/sigma == inverse gamma on sigma, needs adjustment 
-  ans -= dgamma(pow(sigma, -2), Sig_Gam_Dist, 1/Sig_Gam_Dist, true);
-  if(Bayes == 1){
-    // Jacobian adjustment -- only needed if running as Bayesian model with tmbstan
-    ans -= log(2)  - 2*logSigma;
-  }
   // Lognormal prior on Smax (normal on logSmax) 
    ans -= dnorm(logSmax, logSmax_mean, logSmax_sig, true);
  }
@@ -102,13 +88,7 @@ Type objective_function<Type>::operator() ()
  // Approach from Scheurell 2016
  Type SMSY =  (1 - LambertW(exp(1-logA)) ) / B ;
  
- //Estimate Sgen
- // Type Sgen = exp(logSgen);
- // Type LogSMSY = logA + logSgen - B * Sgen;
- // Type Diff = exp(LogSMSY) - SMSY;
- // ans -= dnorm(Diff, 0, Sgen_sig, true);
- 
- 
+
  SIMULATE {
    vector<Type> R_Pred(N_Obs);
    for(int i=0; i<N_Obs; ++i){
@@ -122,7 +102,6 @@ Type objective_function<Type>::operator() ()
   ADREPORT(sigma);
   ADREPORT(R_Fit);
   ADREPORT(SMSY);
-  //ADREPORT(Sgen);
   REPORT(R_Fit);
   return ans;
   
