@@ -22,7 +22,7 @@ Fitting_SW <- "tmbstan"#"TMB"
 
 for (i in 1:ntrials) {
   print(cat(i," of ", ntrials, "ntrials"))
-  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.8, true_a = 1.93, true_b=1/159744, #true_a = rnorm(1,5, 2)
+  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.76, true_a = 1.93, true_b=1/159744, #true_a = rnorm(1,5, 2)
                                 hr_min = 0.25, hr_max = 0.35, lnorm_corr = T)
   # The code below has the expanded alpha value (Hilborn and Walters 1992), and gives the same simulated data as above with lnorm_corr= F. 
   # Note, Hilborn and  Walaters 1992 show corrections to alpha and SREP, but SMAX (1/b) remains constant
