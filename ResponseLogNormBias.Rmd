@@ -1,0 +1,382 @@
+---
+title: "Responses"
+author: "Carrie Holt"
+date: "November 30, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Responses
+This document responds to comments by Murdoch McAllister about Holt and Davis's simulation of lognormal bias correction for Pacific salmon, "LogNormBias.Rmd". Page numbers and quotations refer to Murdoch's Word document.
+
+**Page 1** 
+
+I agree, Walters and Hilborn did not recommend adding a bias correction to the estimate of Ricker parameters, but simply stated that the average stock-recruitment curve  will be a Ricker curve with the parameters a' and b' (~ Eqn 4 of the original memo). Subsequent papers have interpreted this equation by including a +sig2/2 bias correction in estimates of expected (arithmetic average) Ricker alpha, and to generate expected recruitment or expected stock-recruitment reference points (e.g., Fleischman et al.2013, Parken et al. 2006, ADFG salmon stock assessments, Peterman et al. forecasting papers). 
+
+**Page 2**
+
+I'm not sure I follow the agrument that we should us different likelihoods for semelparous and iteroparous species because of their life-histories. Methot and Taylor (2011) were motivated to add a scalar to the log-normal bias correction precisely because the recruitment estimates were sensitive to the estiamte of sigma for iteroparous marine fishes (i.e., recruitment is not invariant to the estimate of sigma).I have asked Sean Anderson and Andrew Edwards for their opinions on this.
+
+**Pages 2-3.** "When S [Spawners] behaves as a random variable in a time-series projection of the Ricker stock-recruit function, the assertations that Holt and Davis make about Equations 1 and 3 do not hold. ... When a colleague of mine and I independently simulated a time series of recruitment using no lognormal corrretion factor (ie., Equation 1 of Holt and Davis document) and different harvest control rules, e.g., Umsy policy option or a variable harvest rate policy option, ... the median recrutiment was instead considerable less than the recruitment predicted by the stock-recruitment parameters. "
+
+Our simulations do not show the pattern that Murdoch describes. The Fig. 1 (below) shows the means and medians of the distribution of residuals from the deterministic curve, over 10,000 trials. The median of the residuals tends to fall near the deterministic prediction of recruits, but the mean tends to be positively biased.  I wonder if there is a simple miscommunication that could be resolved by comparing code? In our simulaton code here, we assumed a single age-class and no autocorrelation in recruitment (I don't think recruitment residuals were siginficantly autocorrelated in the Harrison data).
+
+```{r results='hide', warning= FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+source("Code/Functions.R")
+```
+
+```{r fig.cap="Figure 1. Means and medians of the distribution of residuals from the deterministic Ricker model without a lognormal bias correction, Equation 1. In the projection model, the parameters, Ricker a (1.93) and Ricker sigma (0.76)   were estimated from Harrison Chinook data. A harvest rate policy was applied with annual values that varied accourding to a uniform distribution (0.25,0.35) to reflect recent harvest of Harrison Chinook."}
+
+
+ntrials <- 10000
+Rdist <- matrix(NA, ntrials,4)
+
+for (i in 1:ntrials) {
+  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.76, true_a = 1.93, true_b=1/159744, 
+                                hr_min = 0.25, hr_max = 0.35, EscPolicy = F, constEsc = NA, lnorm_corr = F)
+  SimDataDF <- data.frame(S = round(SimData$S), R = (SimData$R), Year = 1:length(SimData$S))
+  
+ 
+  # Create DF to store true and fitted values
+  DataDF <- SimDataDF[, c("S", "R", "Year")]
+  
+  # Fitted values from Equation 1, Holt and Davis
+  DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) 
+  # Fitted values from Equation 3, Holt and Davis
+  DataDF$Fitadj <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) * exp( SimData$sigma^2 /2) 
+  
+  # What is the distribution of residuals from Eqn 1 (resid) and Eqn 3 (residadj)
+  resid <- data.frame(resid = (SimDataDF$R - DataDF$Fit), residadj = (SimDataDF$R - DataDF$Fitadj), 
+                      year = c(1:length(SimDataDF$R) ) )
+  #ggplot(resid, aes(year, resid) ) + geom_point() + geom_hline(yintercept=0)
+  
+  # Distribution of recruitment residuals from Equation 1 in Holt and Davis
+  Rdist[i,1] <- mean(resid$resid)
+  Rdist[i,2] <- median(resid$resid)
+  
+  # Distribution of recruitment residuals from Equation 3 in Holt and Davis
+  Rdist[i,3] <- mean(resid$residadj)
+  Rdist[i,4] <- median(resid$residadj)
+
+}
+
+# Set up data frame of Ricker residuals for all MC trials
+
+RdistDF <- data.frame( Metric = as.factor(c(rep("mean", ntrials), rep("median", ntrials))), 
+                       Resids = c(Rdist[,1], Rdist[,2]) , 
+                       ResidsAdj = c(Rdist[,3], Rdist[,4]))
+ggplot(RdistDF, aes(x=Metric, y=Resids, fill = Metric)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals from the deterministic model without bias correction, \nEqn. 1 (sigma=0.76)")
+
+
+```
+
+
+
+**Page 3.** "The simulation experiment should also have tested whether the median simulated recruitment from a model without a lognormal correction factor in the future projection of the population conformed to the recruitment given by parameters a and b and whether the median recruitment was insensitive to the value assumed for sigma.  I could find no results in Holt and Davis’ document that numerically confirmed these assertions. "
+
+Our simulation tested whether the median simluated recruitment from a model without lognormal correction factor in future projections conformed to the recruitment given by parameters a and b by showing the distribution of curves derived from those projected data. When the curves describing the projected data were estimated using the standard likelihood for Pacific salmon without a log-normal bias correction, then they matched those from the underlying operating model given by parameters a and b. The boxplots here further show the distribution of recuritment residuals. We did not implement a sensitivity analysis to levels of sigma, as we were interested in the particular case of Harrison Chinook, where sigma is estimated to be 0.76.
+
+**Pages 3-4.** "The median recruitment produced [in Murdoch's simluation described above] also varied with the magnitude of the value of s [sigma] that was applied. For example, with s=0.9 and a moderate harvest rate, the median simulation recruitment was less than 60% of the values deterministically predicted by Equation 1."
+
+Our simulations do not show this pattern. In the boxplots below, sigma was increased from 0.76 to 0.9, and again the median tends to be unbiased. Similarly the median tended to be unbiased for low sigma values (s=0.2)
+
+```{r fig.cap="Figure 2. Means and medians of the distribution of residuals from the deterministic Ricker model without a lognormal bias correction, Equation 1, and with Ricker sigma = either (a) 0.2 or (b) 0.9. The remaining base-case parameters in the projection model are as described in the caption to Fig. 1 and in the code."}
+
+
+
+# Panel (a) boxplots for sigma = 0.2
+ntrials <- 10000
+Rdist <- matrix(NA, ntrials,4)
+
+for (i in 1:ntrials) {
+  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.2, true_a = 1.93, true_b=1/159744, 
+                                hr_min = 0.25, hr_max = 0.35, EscPolicy = F, constEsc = NA, lnorm_corr = F)
+  SimDataDF <- data.frame(S = round(SimData$S), R = (SimData$R), Year = 1:length(SimData$S))
+  
+ 
+  # Create DF to store true and fitted values
+  DataDF <- SimDataDF[, c("S", "R", "Year")]
+  
+  # Fitted values from Equation 1, Holt and Davis
+  DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) 
+  # Fitted values from Equation 3, Holt and Davis
+  DataDF$Fitadj <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) * exp( SimData$sigma^2 /2) 
+  
+  # What is the distribution of residuals from Eqn 1 (resid) and Eqn 3 (residadj)
+  resid <- data.frame(resid = (SimDataDF$R - DataDF$Fit), residadj = (SimDataDF$R - DataDF$Fitadj), 
+                      year = c(1:length(SimDataDF$R) ) )
+  #ggplot(resid, aes(year, resid) ) + geom_point() + geom_hline(yintercept=0)
+  
+  # Distribution of recruitment residuals from Equation 1 in Holt and Davis
+  Rdist[i,1] <- mean(resid$resid)
+  Rdist[i,2] <- median(resid$resid)
+  
+  # Distribution of recruitment residuals from Equation 3 in Holt and Davis
+  Rdist[i,3] <- mean(resid$residadj)
+  Rdist[i,4] <- median(resid$residadj)
+
+}
+
+# Set up data frame of Ricker residuals for all MC trials
+
+RdistDF <- data.frame( Metric = as.factor(c(rep("mean", ntrials), rep("median", ntrials))), 
+                       Resids = c(Rdist[,1], Rdist[,2]) , 
+                       ResidsAdj = c(Rdist[,3], Rdist[,4]))
+plota <- ggplot(RdistDF, aes(x=Metric, y=Resids, fill = Metric)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals from the deterministic model without\nbias correction, Eqn. 1 (sigma=0.2)") + 
+  theme( plot.title = element_text(size = 10) ) + 
+  theme(legend.position = "none") 
+
+
+# Panel (b) boxplots for sigma = 0.9
+Rdist <- matrix(NA, ntrials,4)
+
+for (i in 1:ntrials) {
+  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.9, true_a = 1.93, true_b=1/159744,
+                                hr_min = 0.25, hr_max = 0.35, EscPolicy = F, constEsc = NA, lnorm_corr = F)
+  SimDataDF <- data.frame(S = round(SimData$S), R = (SimData$R), Year = 1:length(SimData$S))
+  
+ 
+  # Create DF to store true and fitted values
+  DataDF <- SimDataDF[, c("S", "R", "Year")]
+  
+  # Fitted values from Equation 1, Holt and Davis
+  DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) 
+  # Fitted values from Equation 3, Holt and Davis
+  DataDF$Fitadj <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) * exp( SimData$sigma^2 /2) 
+  
+  # What is the distribution of residuals from Eqn 1 (resid) and Eqn 3 (residadj)
+  resid <- data.frame(resid = (SimDataDF$R - DataDF$Fit), residadj = (SimDataDF$R - DataDF$Fitadj), 
+                      year = c(1:length(SimDataDF$R) ) )
+  #ggplot(resid, aes(year, resid) ) + geom_point() + geom_hline(yintercept=0)
+  
+  # Distribution of recruitment residuals from Equation 1 in Holt and Davis
+  Rdist[i,1] <- mean(resid$resid)
+  Rdist[i,2] <- median(resid$resid)
+  
+  # Distribution of recruitment residuals from Equation 3 in Holt and Davis
+  Rdist[i,3] <- mean(resid$residadj)
+  Rdist[i,4] <- median(resid$residadj)
+
+}
+
+# Set up data frame of Ricker residuals for all MC trials
+
+RdistDF <- data.frame( Metric = as.factor(c(rep("mean", ntrials), rep("median", ntrials))), 
+                       Resids = c(Rdist[,1], Rdist[,2]) , 
+                       ResidsAdj = c(Rdist[,3], Rdist[,4]))
+plotb <- ggplot(RdistDF, aes(x=Metric, y=Resids, fill = Metric)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals from the deterministic model without\nbias correction, Eqn. 1 (sigma=0.9)") + 
+  theme( plot.title = element_text(size = 10) ) +
+  theme(legend.position = "none") 
+
+
+plot_grid(plota, plotb, 
+          labels = c("(a)", "(b)"),
+          ncol = 2, nrow = 1)
+
+```
+
+**Page 4.** "The mean of recruitments values that my colleague and I obtained were instead considerably less than the value predicted by Equation 3."
+
+Again, our simulations do not show this. Below, boxplots show the distribution of means and medians of residuals from Equation 3 (average recruitmetn with lognormal bias correction). Here, we assumed a base case of sigma =0.76, as estimated for Harrison Chinook.
+
+```{r fig.cap="Figure 3. Means and medians of the distribution of residuals from the deterministic Ricker model with a lognormal bias correction, Equation 3. The parameters in the projection model are as described in the caption to Fig. 1 and in the code."}
+
+ntrials <- 10000
+Rdist <- matrix(NA, ntrials,4)
+
+for (i in 1:ntrials) {
+  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.76, true_a = 1.93, true_b=1/159744, 
+                                hr_min = 0.25, hr_max = 0.35, EscPolicy = F, constEsc = NA, lnorm_corr = F)
+  SimDataDF <- data.frame(S = round(SimData$S), R = (SimData$R), Year = 1:length(SimData$S))
+  
+ 
+  # Create DF to store true and fitted values
+  DataDF <- SimDataDF[, c("S", "R", "Year")]
+  
+  # Fitted values from Equation 1, Holt and Davis
+  DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) 
+  # Fitted values from Equation 3, Holt and Davis
+  DataDF$Fitadj <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) * exp( SimData$sigma^2 /2) 
+  
+  # What is the distribution of residuals from Eqn 1 (resid) and Eqn 3 (residadj)
+  resid <- data.frame(resid = (SimDataDF$R - DataDF$Fit), residadj = (SimDataDF$R - DataDF$Fitadj), 
+                      year = c(1:length(SimDataDF$R) ) )
+  #ggplot(resid, aes(year, resid) ) + geom_point() + geom_hline(yintercept=0)
+  
+  # Distribution of recruitment residuals from Equation 1 in Holt and Davis
+  Rdist[i,1] <- mean(resid$resid)
+  Rdist[i,2] <- median(resid$resid)
+  
+  # Distribution of recruitment residuals from Equation 3 in Holt and Davis
+  Rdist[i,3] <- mean(resid$residadj)
+  Rdist[i,4] <- median(resid$residadj)
+
+}
+
+# Set up data frame of Ricker residuals for all MC trials
+
+RdistDF <- data.frame( Metric = as.factor(c(rep("mean", ntrials), rep("median", ntrials))), 
+                       Resids = c(Rdist[,1], Rdist[,2]) , 
+                       ResidsAdj = c(Rdist[,3], Rdist[,4]))
+ggplot(RdistDF, aes(x=Metric, y=ResidsAdj, fill = Metric)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals from the deterministic model with bias correction, \nEqn. 3 (sigma=0.76)")
+
+
+```
+
+**Page 4.** "We also found that the mean value for recruitment obtained from simulating a time series of recruitment from equation 1 was invariant to the value assumed for sigma. In fact, the average recruitment from time series simulation with equation 1 and a fixed harvest rate is close to deterministic predicted recruitment from equation 1 for any fixed exploitation rate policy. "
+
+Instead, the simulations here show that the mean of the residuals from Equation 1 (deterministic model) tend to be positively biased, and that the magnitude of the bias depends on sigma (See Figures 1 and 2, orange boxes for various levels of sigma)
+
+**Page 4.** "However, when a fixed escapement policy option was simulated, and the value for s [sigma] was set at a low value, e.g., 0.5, the median and mean simulated recruitment were closer to the deterministic recruitment predicted by the Ricker a and b parameter values in equations 1 and 3, respectively and the median and mean simulated recruitment obtained approached the predictions of equations 1 and 3 more closely as the value for decreased.  "
+
+Here our results are similar to those of Murdoch's. With a constant escapament policy at ~half Smax and sigma = 0.5, the median of the distribution of residuals from Equation 1 tends to be unbiased, and the mean of the distribtuion from Equation 3 tends to be unbiased. 
+
+
+```{r fig.cap="Figure 4. Means and medians of the distribution of residuals from the deterministic Ricker model (a) without a lognormal bias correction, Equation 1 and (b) with a lognormal bias correction, Equation 3, assuming a fixed escapamaent policy at ~half of Smax and sigma = 0.5. The remaining base-case parameters in the projection model are as described in the caption to Fig. 1 and in the code."}
+
+ntrials <- 10000
+Rdist <- matrix(NA, ntrials,4)
+
+for (i in 1:ntrials) {
+  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.5, true_a = 1.93, true_b=1/159744, 
+                                hr_min = 0.25, hr_max = 0.35, EscPolicy = T, constEsc = 75000, lnorm_corr = F)
+  SimDataDF <- data.frame(S = round(SimData$S), R = (SimData$R), Year = 1:length(SimData$S))
+  
+ 
+  # Create DF to store true and fitted values
+  DataDF <- SimDataDF[, c("S", "R", "Year")]
+  
+  # Fitted values from Equation 1, Holt and Davis
+  DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) 
+  # Fitted values from Equation 3, Holt and Davis
+  DataDF$Fitadj <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) * exp( SimData$sigma^2 /2) 
+  
+  # What is the distribution of residuals from Eqn 1 (resid) and Eqn 3 (residadj)
+  resid <- data.frame(resid = (SimDataDF$R - DataDF$Fit), residadj = (SimDataDF$R - DataDF$Fitadj), 
+                      year = c(1:length(SimDataDF$R) ) )
+  #ggplot(resid, aes(year, resid) ) + geom_point() + geom_hline(yintercept=0)
+  
+  # Distribution of recruitment residuals from Equation 1 in Holt and Davis
+  Rdist[i,1] <- mean(resid$resid)
+  Rdist[i,2] <- median(resid$resid)
+  
+  # Distribution of recruitment residuals from Equation 3 in Holt and Davis
+  Rdist[i,3] <- mean(resid$residadj)
+  Rdist[i,4] <- median(resid$residadj)
+
+}
+
+# Set up data frame of Ricker residuals for all MC trials
+
+RdistDF <- data.frame( Metric = as.factor(c(rep("mean", ntrials), rep("median", ntrials))), 
+                       Resids = c(Rdist[,1], Rdist[,2]) , 
+                       ResidsAdj = c(Rdist[,3], Rdist[,4]))
+plota <- ggplot(RdistDF, aes(x=Metric, y=Resids, fill = Metric)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals from the deterministic model without\nbias correction, Eqn. 1 (sigma=0.5)") +
+  theme( plot.title = element_text(size = 10) ) +
+  theme(legend.position = "none") 
+
+plotb <- ggplot(RdistDF, aes(x=Metric, y=ResidsAdj, fill = Metric)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals from the deterministic model with\nbias correction, Eqn. 3 (sigma=0.5)") +
+  theme( plot.title = element_text(size = 10) ) +
+  theme(legend.position = "none") 
+
+
+plot_grid(plota, plotb, 
+          labels = c("(a)", "(b)"),
+          ncol = 2, nrow = 1)
+
+
+
+```
+
+**Page 4.** "But for a larger value for s, e.g., 0.9, the median and mean values were at about 92-93% of the values predicted by equations 1 and 3."
+
+We do not see a negative bias in mean and mean values at high sigma.
+
+```{r fig.cap="Figure 5. Means and medians of the distribution of residuals from the deterministic Ricker model (a) without a lognormal bias correction, Equation 1 and (b) with a lognormal bias correction, Equation 3, assuming a fixed escapamaent policy at ~half of Smax and sigma = 0.9. The remaining base-case parameters in the projection model are as described in the caption to Fig. 1 and in the code."}
+ntrials <- 10000
+Rdist <- matrix(NA, ntrials,4)
+
+for (i in 1:ntrials) {
+  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.9, true_a = 1.93, true_b=1/159744, 
+                                hr_min = 0.25, hr_max = 0.35, EscPolicy = T, constEsc = 75000, lnorm_corr = F)
+  SimDataDF <- data.frame(S = round(SimData$S), R = (SimData$R), Year = 1:length(SimData$S))
+  
+ 
+  # Create DF to store true and fitted values
+  DataDF <- SimDataDF[, c("S", "R", "Year")]
+  
+  # Fitted values from Equation 1, Holt and Davis
+  DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) 
+  # Fitted values from Equation 3, Holt and Davis
+  DataDF$Fitadj <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) * exp( SimData$sigma^2 /2) 
+  
+  # What is the distribution of residuals from Eqn 1 (resid) and Eqn 3 (residadj)
+  resid <- data.frame(resid = (SimDataDF$R - DataDF$Fit), residadj = (SimDataDF$R - DataDF$Fitadj), 
+                      year = c(1:length(SimDataDF$R) ) )
+  #ggplot(resid, aes(year, resid) ) + geom_point() + geom_hline(yintercept=0)
+  
+  # Distribution of recruitment residuals from Equation 1 in Holt and Davis
+  Rdist[i,1] <- mean(resid$resid)
+  Rdist[i,2] <- median(resid$resid)
+  
+  # Distribution of recruitment residuals from Equation 3 in Holt and Davis
+  Rdist[i,3] <- mean(resid$residadj)
+  Rdist[i,4] <- median(resid$residadj)
+
+}
+
+# Set up data frame of Ricker residuals for all MC trials
+
+RdistDF <- data.frame( Metric = as.factor(c(rep("mean", ntrials), rep("median", ntrials))), 
+                       Resids = c(Rdist[,1], Rdist[,2]) , 
+                       ResidsAdj = c(Rdist[,3], Rdist[,4]))
+plota <- ggplot(RdistDF, aes(x=Metric, y=Resids, fill = Metric)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals from the deterministic model\nwithout bias correction, Eqn.1(sig=0.9)") +
+  theme( plot.title = element_text(size = 10) ) +
+  theme(legend.position = "none") 
+
+plotb <- ggplot(RdistDF, aes(x=Metric, y=ResidsAdj, fill = Metric)) + 
+  geom_boxplot() + 
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals from the deterministic model\nwith bias correction, Eqn.3(sig=0.9)") +
+  theme( plot.title = element_text(size = 10) ) +
+  theme(legend.position = "none") 
+
+
+plot_grid(plota, plotb, 
+          labels = c("(a)", "(b)"),
+          ncol = 2, nrow = 1)
+
+
+```
+
+**Page 4.** "The inclusion of S [Spawners] as a random variable on the right side of equations 1 and 3 in both the base and exponent creates a non-straightforward joint source of variation that invalidates the assumption that S in equations 1 and 3 is fixed and invariant."
+
+I'm still not clear why a random draw of recruitment from Equations 1 and 3 would not follow assumptions of Equations 1 and 3. I understand that the resulting scatter of data points can result in biases in estimates of Ricker a and b  since spwaners are not independent (e.g., due to timeseries biases). However, I'm not sure I see why the distribution of recrutiment at a given spawner abundance would differ from that predicted by the equations.
+

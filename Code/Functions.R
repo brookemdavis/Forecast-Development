@@ -3,7 +3,7 @@
 
 # Simulate a single stock of Ricker SR data =============================================================================================
 Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, true_b=1/5000,
-                          hr_min = 0.2, hr_max = 0.8, lnorm_corr = F, autoCorr = F, rho=NA){
+                          hr_min = 0.2, hr_max = 0.8, EscPolicy = F, constEsc = NA, lnorm_corr = F, autoCorr = F, rho=NA){
   
   # Estimate Sgen 
   SRep<- log(true_a) / true_b
@@ -68,8 +68,14 @@ Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, tr
     # if(sum(esc[(i-4):(i-1)] > SMSY) == 4) { hr_vec[i] <- hr_max}
     # esc[i] <- max((1-hr_vec[i])*rec[i], 100)
     
-    esc[i] <- (1-hr_vec[i])*rec[i]
-    catch[i] <- hr_vec[i]*rec[i]
+    if (!EscPolicy) esc[i] <- (1-hr_vec[i])*rec[i]
+    if (EscPolicy) { 
+      if( rec[i] >= constEsc) esc[i] <- constEsc
+        else esc[i] <- rec[i]
+      }
+    
+    if (!EscPolicy) catch[i] <- hr_vec[i]*rec[i]
+    if (EscPolicy) catch[i] <- rec[i] - esc[i] 
   }
 
   
@@ -212,7 +218,7 @@ RunRicker <- function(Data,
                       Priors = T, # if fitting with TMB, have option not use priors
                       BiasCorr = F, #Should a bias correction be included in the LL?
                       Name = "Test", # Name to put in Mod column
-                      logA_mean = 0,logA_sig = 0, # priors on logAlpha
+                      logA_mean = 1,logA_sig = 1, # priors on logAlpha
                       Sig_Gam_Dist = 0.001, # inverse gamma shape and scale param
                       Smax_mean = as.numeric(quantile(Data$S, 0.8)), Smax_sig = as.numeric(quantile(Data$S, 0.8)) / 2 ) { # priors on capacity, Smax
  
@@ -224,13 +230,17 @@ RunRicker <- function(Data,
   # these are the same regardless of software
   data <- list() #data inputs
   data$S <- Data$S/Scale 
+  data$logA_mean <- logA_mean
+  data$Sig_Gam_Dist <- Sig_Gam_Dist
+  
   data$logSmax_mean <- log(Smax_mean/Scale)
   # Add a bias correction in Ricker estimation
   data$BiasCorr <- as.numeric(BiasCorr)
   # set up starting values
   param <- list()
   param$logA <- 1
-  
+  # set Bayes to 0, switch to one if using tmbstan
+  data$Bayes <- 0
   
   # if using TMB input logR, rather than R_Obs, need Scale, Prior indicator
   if(Fitting_SW %in% c("TMB", "tmbstan")){
@@ -238,19 +248,16 @@ RunRicker <- function(Data,
     data$Scale <- Scale
     data$Priors <- as.numeric(Priors)
     param$logSmax <- log(as.numeric(quantile(Data$S, 0.8)/Scale))
+    if(Fitting_SW =="tmbstan") data$Bayes <- 1
   }
   
   # if using TMB, tmbtsand or STAN variance is defined using sd
   if(Fitting_SW %in% c("TMB", "Stan", "tmbstan")){
+    data$logA_sig <- logA_sig
     data$logSmax_sig <- Smax_sig/Scale
     param$logSigma <- -2
   }
-  # if using stan (or Jags??)
-  if(Fitting_SW %in% c("Stan")){
-    data$logA_sig <- logA_sig
-    
-  }
-  
+
   # if jags or stan need R_Obs rather than logR, and N
   if(Fitting_SW %in% c("JAGS", "Stan")){
     

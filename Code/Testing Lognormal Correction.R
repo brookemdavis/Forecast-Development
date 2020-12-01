@@ -16,48 +16,67 @@ dyn.load(dynlib("Code/TMB/Single_Stock_Ricker"))
 # Simulate some basic Ricker data - don't use lognormal correction
 
 set.seed(1004)
-ntrials <- 1#100
+ntrials <- 10000#1#100
 RicPars <- matrix(NA, ntrials, 4)
-Fitting_SW <- "tmbstan"#"TMB"
+Fitting_SW <- "TMB"#"tmbstan"#"TMB"
+Rdist <- matrix(NA, ntrials,4)
+
+#true_UMSY <- ( 0.5 * log(true_a) - 0.07*log(true_a)^2 )
+#true_SMSY <- ( 0.5 * log(1.93) - 0.07*log(1.93)^2 ) = 0.2984
+# true_a <- 1.93
+# sig_Ricker <-0.76
+# hr_min <- 0.25
+# hr_max <- 0.35
 
 for (i in 1:ntrials) {
-  print(cat(i," of ", ntrials, "ntrials"))
-  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.76, true_a = 1.93, true_b=1/159744, #true_a = rnorm(1,5, 2)
-                                hr_min = 0.25, hr_max = 0.35, lnorm_corr = T)
+  #print(cat(i," of ", ntrials, "ntrials"))
+  SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.9, true_a = 1.93, true_b=1/159744, #true_a = rnorm(1,5, 2)
+                                hr_min = 0.25, hr_max = 0.35, EscPolicy = T, constEsc = 75000, lnorm_corr = F)
   # The code below has the expanded alpha value (Hilborn and Walters 1992), and gives the same simulated data as above with lnorm_corr= F. 
-  # Note, Hilborn and  Walaters 1992 show corrections to alpha and SREP, but SMAX (1/b) remains constant
+  # Note, Hilborn and  Walters 1992 show corrections to alpha and SREP, but SMAX (1/b) remains constant
   # SimData <- Sim_Ricker_SR_Data(leng=50, age=4, Sig_Ricker = 0.8, true_a = exp(log(5)+0.8^2/2), true_b=1/100000, #true_a = rnorm(1,5, 2)
   #                              hr_min = 0.2, hr_max = 0.8, lnorm_corr = T)
   
   SimDataDF <- data.frame(S = round(SimData$S), R = (SimData$R), Year = 1:length(SimData$S))
   
   #ggplot(SimDataDF, aes(x=S, y=R)) + geom_point() + coord_fixed()
-  
+
   # Create DF to store true and fitted values
   DataDF <- SimDataDF[, c("S", "R", "Year")]
   DataDF$Fit <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) 
+  DataDF$Fitadj <- SimData$true_a * DataDF$S * exp( -SimData$true_b * DataDF$S ) * exp( SimData$sigma^2 /2) 
   DataDF$Mod <- "True"
   DataDF$CI_low <- DataDF$CI_up  <-  DataDF$Pred <- DataDF$Pred_low <- DataDF$Pred_up <- DataDF$Fit
   
-  # run using TMB, without prior
-  # Switch BiasCorr between T and F and plot to see impact of bias correction in LL
-  TMB_No_Prior <- RunRicker(Data = SimDataDF, 
-                            Fitting_SW = Fitting_SW, #"tmbstan",#"TMB", 
-                            Priors = T, BiasCorr=F, Name = "TMB_No_Prior")
+  # What is the distribution of simulated recruits
+  resid <- data.frame(resid = (SimDataDF$R - DataDF$Fit), residadj = (SimDataDF$R - DataDF$Fitadj), 
+                      year = c(1:length(SimDataDF$R) ) )
+  #ggplot(resid, aes(year, resid) ) + geom_point() + geom_hline(yintercept=0)
+  Rdist[i,1] <- mean(resid$resid)
+  Rdist[i,2] <- median(resid$resid)
   
-  if( Fitting_SW == "tmbstan") {
-    Ests_quant <- apply ( as.data.frame(TMB_No_Prior$Ests) , 2, quantile, probs = c(0.025, 0.5, 0.975) )
-    logA <- as.data.frame(Ests_quant)$logA[2] # median
-    logSmax <- as.data.frame(Ests_quant)$logSmax[2] # median
-    logSigma <- as.data.frame(Ests_quant)$logSigma[2] # median
-    RicPars[i,] <- c(logA, logSmax, logSigma, TMB_No_Prior$Scale)  
-  }
-  if( Fitting_SW == "TMB") {
-    logA <- TMB_No_Prior$Ests %>% filter(Param=="logA") %>% pull(Estimate)
-    logSmax <- TMB_No_Prior$Ests %>% filter(Param=="logSmax") %>% pull(Estimate)
-    logSigma <- TMB_No_Prior$Ests %>% filter(Param=="logSigma") %>% pull(Estimate)
-    RicPars[i,] <- c(logA, logSmax, logSigma, TMB_No_Prior$Scale)  
-  }
+  Rdist[i,3] <- mean(resid$residadj)
+  Rdist[i,4] <- median(resid$residadj)
+
+    # # run using TMB, without prior
+  # # Switch BiasCorr between T and F and plot to see impact of bias correction in LL
+  # TMB_No_Prior <- RunRicker(Data = SimDataDF, 
+  #                           Fitting_SW = Fitting_SW, #"tmbstan",#"TMB", 
+  #                           Priors = T, BiasCorr=F, Name = "TMB_No_Prior")
+  # 
+  # if( Fitting_SW == "tmbstan") {
+  #   Ests_quant <- apply ( as.data.frame(TMB_No_Prior$Ests) , 2, quantile, probs = c(0.025, 0.5, 0.975) )
+  #   logA <- as.data.frame(Ests_quant)$logA[2] # median
+  #   logSmax <- as.data.frame(Ests_quant)$logSmax[2] # median
+  #   logSigma <- as.data.frame(Ests_quant)$logSigma[2] # median
+  #   RicPars[i,] <- c(logA, logSmax, logSigma, TMB_No_Prior$Scale)  
+  # }
+  # if( Fitting_SW == "TMB") {
+  #   logA <- TMB_No_Prior$Ests %>% filter(Param=="logA") %>% pull(Estimate)
+  #   logSmax <- TMB_No_Prior$Ests %>% filter(Param=="logSmax") %>% pull(Estimate)
+  #   logSigma <- TMB_No_Prior$Ests %>% filter(Param=="logSigma") %>% pull(Estimate)
+  #   RicPars[i,] <- c(logA, logSmax, logSigma, TMB_No_Prior$Scale)  
+  # }
   
 }
 
@@ -67,6 +86,26 @@ for (i in 1:ntrials) {
 colnames(RicPars) <- c("logA", "logSmax", "logSigma", "Scale")
 RicPars <- as.data.frame(RicPars)
 RicPars <- RicPars %>% mutate(Smax = exp(logSmax)*Scale) 
+
+
+RdistDF <- data.frame( Metric = as.factor(c(rep("mean", ntrials), rep("median", ntrials))), 
+                       Resids = c(Rdist[,1], Rdist[,2]) , 
+                       ResidsAdj = c(Rdist[,3], Rdist[,4]))
+ggplot(RdistDF, aes(x=Metric, y=Resids, fill = Metric)) + 
+  geom_boxplot() + 
+  annotate("text", x=1.45, y=mean(Rdist[,1]), label = round(mean(Rdist[,1],0)) ) + 
+  annotate("text", x=2.46, y=mean(Rdist[,2]), label = round(mean(Rdist[,2],0)) ) +
+  geom_hline(yintercept=0)
+
+ggplot(RdistDF, aes(x=Metric, y=ResidsAdj, fill = Metric)) + 
+  geom_boxplot() + 
+  annotate("text", x=1.45, y=mean(Rdist[,3]), label = round(mean(Rdist[,3],0)) ) + 
+  annotate("text", x=2.46, y=mean(Rdist[,4]), label = round(mean(Rdist[,4],0)) ) +
+  geom_hline(yintercept=0)
+
+cat("mean=", mean(Rdist[,1]) )
+cat("median=", mean(Rdist[,2]) )
+
 
 # Tune simulations by removing all MC trials with productivity less than 1 (logA < 0)
 
