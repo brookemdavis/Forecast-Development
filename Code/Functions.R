@@ -301,7 +301,7 @@ RunRicker <- function(Data,
     FitsDF$CI_up <- R_Ests$R_Fit + 1.96*R_Ests$StdErr
     
     # create prediction interval using simulate
-    R_Preds <- matrix(nrow = 1000, ncol = 50)
+    R_Preds <- matrix(nrow = 1000, ncol = length(Data$S))
     for(i in 1:1000){
       R_Preds[i, ] <- obj$simulate()$R_Pred
     }
