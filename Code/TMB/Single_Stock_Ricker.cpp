@@ -80,7 +80,7 @@ Type objective_function<Type>::operator() ()
  if(Priors == 1){
   // Prior on logalpha -- no jacobian since same form as parameter
   ans -= dnorm(logA, logA_mean, logA_sig, true);
-   // gamma prior on 1/sigma == inverse gamma on sigma, needs adjustment 
+   // gamma prior on 1/variance == inverse gamma on sigma, needs adjustment 
   ans -= dgamma(pow(sigma, -2), Sig_Gam_Dist, 1/Sig_Gam_Dist, true);
   if(Bayes == 1){
     // Jacobian adjustment -- only needed if running as Bayesian model with tmbstan

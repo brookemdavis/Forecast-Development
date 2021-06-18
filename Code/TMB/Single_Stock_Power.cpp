@@ -16,7 +16,7 @@ Type objective_function<Type>::operator() ()
   PARAMETER(logA);
   PARAMETER(logSigma);
   PARAMETER(logB);
-
+  
   Type ans=0;
   Type sigma=exp(logSigma);
   int N_Obs = S.size(); 
@@ -31,36 +31,36 @@ Type objective_function<Type>::operator() ()
     ans += -dnorm(logR(i), logR_Fit(i), sigma, true);
     R_Fit(i) = exp(logR_Fit(i))*Scale;
   }
- 
- // Add priors
- if(Priors == 1){
-  // Normal prior on A -- this is form in current forecast, will leave as is for now
-  ans -= dnorm(exp(logA), A_mean, A_sig, true);
-   if(Bayes == 1){
-     // need Jacobian since logA is parameter log | exp(x) d/dx | = x
-     ans -= logA;
-   }
-   // gamma prior on 1/sigma == inverse gamma on sigma, needs adjustment 
-  ans -= dgamma(pow(sigma, -2), Sig_Gam_Dist, 1/Sig_Gam_Dist, true);
-   if(Bayes == 1){
+  
+  // Add priors
+  if(Priors == 1){
+    // Normal prior on A -- this is form in current forecast, will leave as is for now
+    ans -= dnorm(exp(logA), A_mean, A_sig, true);
+    if(Bayes == 1){
+      // need Jacobian since logA is parameter log | exp(x) d/dx | = x
+      ans -= logA;
+    }
+    // gamma prior on 1/sigma == inverse gamma on sigma, needs adjustment 
+    ans -= dgamma(pow(sigma, -2), Sig_Gam_Dist, 1/Sig_Gam_Dist, true);
+    if(Bayes == 1){
       // Jacobian adjustment
       ans -= log(2)  - 2*logSigma;
-   }
-  // Normal prior on B
-  ans -= dnorm(exp(logB), B_mean, B_sig, true);
-   if(Bayes == 1){
+    }
+    // Normal prior on B
+    ans -= dnorm(exp(logB), B_mean, B_sig, true);
+    if(Bayes == 1){
       // need Jacobian since logB is parameter log | exp(x) d/dx | = x
       ans -= logB;
-   }
- }
- 
- SIMULATE {
-   vector<Type> R_Pred(N_Obs);
-   for(int i=0; i<N_Obs; ++i){
-     R_Pred(i) = exp(rnorm(logR_Fit(i), sigma)) * Scale;
-   }
-   REPORT(R_Pred);
- }
+    }
+  }
+  
+  SIMULATE {
+    vector<Type> R_Pred(N_Obs);
+    for(int i=0; i<N_Obs; ++i){
+      R_Pred(i) = exp(rnorm(logR_Fit(i), sigma)) * Scale;
+    }
+    REPORT(R_Pred);
+  }
   
   ADREPORT(A);
   ADREPORT(B);

@@ -3,7 +3,8 @@
 
 # Simulate a single stock of Ricker SR data =============================================================================================
 Sim_Ricker_SR_Data <- function( leng=20, age=4, Sig_Ricker = 0.2, true_a = 3, true_b=1/5000,
-                          hr_min = 0.2, hr_max = 0.8, lnorm_corr = F, autoCorr = F, rho=NA){
+                          hr_min = 0.2, hr_max = 0.8, lnorm_corr = F, autoCorr = F, rho=NA,
+                          covariate = F, ){
   
   # Estimate Sgen 
   SRep<- log(true_a) / true_b
@@ -872,12 +873,13 @@ RunLarkin <-  function(Data,
 
 # Jags Models
 
+# Basic Ricker model
 Ricker.model.MCMC <- function(){
   for (i in 1:N) {                       #loop over N sample points
     R_Obs[i] ~ dlnorm(logR_Fit[i], tau)          #likelihood -> predicted value for NA in data set
     logR_Fit[i] <-  logA - beta * S[i] + log(S[i])               # calc log(R) - fitted values  
     R_Fit[i] <- exp(logR_Fit[i])
-    R_Pred[i] ~ dlnorm(logR_Fit[i],tau)
+    R_Pred[i] ~ dlnorm(logR_Fit[i],tau)     # R_Pred is what used to be Rep
   }
   
   logA ~ dnorm(logA_mean, logA_tau)       
@@ -888,6 +890,25 @@ Ricker.model.MCMC <- function(){
   
 }
 
+#----------------------------------
+# Ricker model with env. covariate
+RickerCov.model.MCMC <- function(){
+  for (i in 1:N) {                                    #loop over N sample points      
+    R_Obs[i] ~ dlnorm(logR_Fit[i],tau)                   #likelihood 
+    logR_Fit[i] <- logA - beta *S[i] + log(S[i])  + g * env[i] 
+    R_Fit[i] <- exp(logR_Fit[i])
+    R_Pred[i] ~ dlnorm(logR_Fit[i], tau)
+  }
+  
+  g ~ dnorm(g_mean,g_tau)     
+  logA ~ dnorm(logA_mean, logA_tau)               #prior for alpha
+  beta <- 1/Smax				   # prior for Smax
+  Smax ~ dlnorm(logSmax_mean, logSmax_tau)       			    
+  tau ~ dgamma(Sig_Gam_Dist, Sig_Gam_Dist)                      #prior for precision parameter
+  sigma <- 1/sqrt(tau)                                 		
+}
+
+#---------------------------------
 # Power model from forecast model
 Power.model.MCMC <- function(){
   for (i in 1:N) {                             # loop over N sample points
@@ -904,7 +925,7 @@ Power.model.MCMC <- function(){
   
 }
 
-
+#---------------
 # Larkin Model
 Larkin.model.MCMC <- function(){
   for(i in 4:N) {               		#loop over N sample points
