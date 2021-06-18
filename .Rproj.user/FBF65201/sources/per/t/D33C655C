@@ -1,0 +1,27 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1599243653940.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3783033854",
+    "id" : "D33C655C",
+    "lastKnownWriteTime" : 1602280061,
+    "last_content_update" : 1602280061995,
+    "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/Functions.R",
+    "project_path" : "Code/Functions.R",
+    "properties" : {
+        "cursorPosition" : "10,71",
+        "scrollLine" : "0",
+        "source_window_id" : "",
+        "tempName" : "Untitled1"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

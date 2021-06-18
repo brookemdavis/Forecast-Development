@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1602278493619.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "31780716",
+    "id" : "CA9DF995",
+    "lastKnownWriteTime" : 1602278653,
+    "last_content_update" : 1602278653391,
+    "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/STAN/Single_Stock_Ricker_Env.stan",
+    "project_path" : "Code/STAN/Single_Stock_Ricker_Env.stan",
+    "properties" : {
+        "cursorPosition" : "46,16",
+        "scrollLine" : "5",
+        "tempName" : "Untitled1"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "stan"
+}

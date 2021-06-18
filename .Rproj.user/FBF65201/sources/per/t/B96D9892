@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1602275270285.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "350182026",
+    "id" : "B96D9892",
+    "lastKnownWriteTime" : 1588806895,
+    "last_content_update" : 1588806895,
+    "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/FC_SUB_SR_Models.R",
+    "project_path" : "Code/FC_SUB_SR_Models.R",
+    "properties" : {
+        "cursorPosition" : "33,0",
+        "scrollLine" : "14"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

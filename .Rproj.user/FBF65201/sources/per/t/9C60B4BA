@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1602263736414.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "392180836",
+    "id" : "9C60B4BA",
+    "lastKnownWriteTime" : 1602278001,
+    "last_content_update" : 1602278001832,
+    "path" : "C:/Users/davisbr/Documents/Sockeye Analytical/Forecast Development/Code/TMB/Single_Stock_Ricker_Covariate.cpp",
+    "project_path" : "Code/TMB/Single_Stock_Ricker_Covariate.cpp",
+    "properties" : {
+        "cursorPosition" : "57,18",
+        "scrollLine" : "65",
+        "source_window_id" : ""
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "cpp"
+}

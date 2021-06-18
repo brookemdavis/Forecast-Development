@@ -1,0 +1,17 @@
+# read in data
+
+Data <- read.csv("ChilkoAge1Length.csv")
+
+Avg <- mean(Data$Mean_Length, na.rm=T)
+
+pdf("ChilkoLengths.pdf", width = 6, height =4)
+par(mgp = c(1.75, 0.5, 0))
+plot(Data$Migration_Year, Data$Mean_Length, type = "o", pch=19,
+     xlab = "Migration Year", ylab = "Mean Length (mm)")
+abline(h=Avg, lty=2)
+points(x=2018, y=Data$Mean_Length[Data$Migration_Year==2018], pch=19,
+     col = "darkblue")
+points(x=2019, y=Data$Mean_Length[Data$Migration_Year==2019], pch=19,
+       col = "brown4")
+mtext(side = 3, line=0.5,"Chilko Age-1 Mean Length")
+dev.off()
